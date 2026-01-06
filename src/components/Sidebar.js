@@ -4,8 +4,6 @@ import {
     Clock,
     PieChart,
     History,
-    BarChart3,
-    Users,
     LogOut
 } from 'lucide-react';
 
@@ -39,14 +37,7 @@ export const Sidebar = ({ user, onLogout }) => {
                     <History size={20} />
                     <span>Timesheets</span>
                 </NavLink>
-                <NavLink to="/analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                    <BarChart3 size={20} />
-                    <span>Analytics</span>
-                </NavLink>
-                <NavLink to="/team" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                    <Users size={20} />
-                    <span>Team</span>
-                </NavLink>
+
             </nav>
 
             <div className="user-profile-mini">

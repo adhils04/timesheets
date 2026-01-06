@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { updatePassword, updateProfile } from 'firebase/auth';
+import { updatePassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { User, Lock, Mail, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const Profile = ({ user }) => {
-    const [displayName, setDisplayName] = useState(user?.displayName || '');
+
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
@@ -16,11 +16,6 @@ export const Profile = ({ user }) => {
         setMessage(null);
 
         try {
-            if (displayName !== user.displayName) {
-                await updateProfile(auth.currentUser, {
-                    displayName: displayName
-                });
-            }
 
             if (newPassword) {
                 if (newPassword !== confirmPassword) {
@@ -77,16 +72,7 @@ export const Profile = ({ user }) => {
                             </div>
                         </div>
 
-                        <div className="input-group">
-                            <label className="input-label">Display Name</label>
-                            <input
-                                type="text"
-                                className="custom-input"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                placeholder="Your Name"
-                            />
-                        </div>
+
                     </div>
 
                     {/* Password Section */}

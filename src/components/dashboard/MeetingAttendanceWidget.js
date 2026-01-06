@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { FOUNDERS, APP_ID } from '../../constants';
+import { getCachedData, setCachedData, CACHE_KEYS } from '../../utils/cache';
 
 // Helper to get default attendance state
 const getDefaultAttendance = () =>
@@ -9,13 +10,21 @@ const getDefaultAttendance = () =>
 
 export const MeetingAttendanceWidget = React.memo(() => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [attendance, setAttendance] = useState(getDefaultAttendance());
-    const [originalAttendance, setOriginalAttendance] = useState(getDefaultAttendance());
-    const [isNewEntry, setIsNewEntry] = useState(true);
-    const [loading, setLoading] = useState(true);
+
+    // Initialize attendance from cache for today's date
+    const todayKey = new Date().toISOString().split('T')[0];
+    const cachedTodayAttendance = getCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + todayKey);
+    const [attendance, setAttendance] = useState(cachedTodayAttendance || getDefaultAttendance());
+    const [originalAttendance, setOriginalAttendance] = useState(cachedTodayAttendance || getDefaultAttendance());
+
+    const [isNewEntry, setIsNewEntry] = useState(!cachedTodayAttendance);
+    const [loading, setLoading] = useState(!cachedTodayAttendance || selectedDate !== todayKey);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [stats, setStats] = useState({
+
+    // Initialize stats from cache immediately
+    const cachedStats = getCachedData(CACHE_KEYS.MEETING_STATS);
+    const [stats, setStats] = useState(cachedStats || {
         founderStats: {},
         yearlyTotal: 0,
         totalMeetings: 0
@@ -29,8 +38,20 @@ export const MeetingAttendanceWidget = React.memo(() => {
         let cancelled = false;
 
         const fetchAttendance = async () => {
-            setLoading(true);
-            setSaveSuccess(false); // Reset success on date change
+            // Check cache first
+            const cachedAttendance = getCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate);
+            if (cachedAttendance) {
+                setAttendance(cachedAttendance);
+                setOriginalAttendance(cachedAttendance);
+                setIsNewEntry(false);
+                setLoading(false);
+                loadedDatesRef.current.add(selectedDate);
+                // Still fetch from server in background to ensure freshness
+            } else {
+                setLoading(true);
+            }
+
+            setSaveSuccess(false);
 
             try {
                 const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate);
@@ -46,8 +67,10 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     setOriginalAttendance(fullData);
                     setIsNewEntry(false);
                     loadedDatesRef.current.add(selectedDate);
-                } else {
-                    // Reset to defaults for new date
+                    // Cache this attendance
+                    setCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate, fullData);
+                } else if (!cachedAttendance) {
+                    // Only reset to defaults if we didn't have cache
                     const defaults = getDefaultAttendance();
                     setAttendance(defaults);
                     setOriginalAttendance(defaults);
@@ -55,11 +78,13 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 }
             } catch (error) {
                 console.error("Error fetching attendance:", error);
-                // On error, still reset to defaults
-                const defaults = getDefaultAttendance();
-                setAttendance(defaults);
-                setOriginalAttendance(defaults);
-                setIsNewEntry(true);
+                // On error, only reset if we don't have cache
+                if (!cachedAttendance) {
+                    const defaults = getDefaultAttendance();
+                    setAttendance(defaults);
+                    setOriginalAttendance(defaults);
+                    setIsNewEntry(true);
+                }
             } finally {
                 if (!cancelled) {
                     setLoading(false);
@@ -72,7 +97,7 @@ export const MeetingAttendanceWidget = React.memo(() => {
         return () => { cancelled = true; };
     }, [selectedDate]);
 
-    // Fetch overall stats on mount
+    // Fetch overall stats on mount - use cache for instant display
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -105,11 +130,15 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     }
                 });
 
-                setStats({
+                const newStats = {
                     founderStats: founderCounts,
                     yearlyTotal: yearlyCount,
                     totalMeetings: totalMeetingsCount
-                });
+                };
+
+                setStats(newStats);
+                // Cache the stats
+                setCachedData(CACHE_KEYS.MEETING_STATS, newStats);
             } catch (error) {
                 console.error("Error fetching stats:", error);
             }
@@ -193,6 +222,9 @@ export const MeetingAttendanceWidget = React.memo(() => {
             setIsNewEntry(false);
             loadedDatesRef.current.add(selectedDate);
             setSaveSuccess(true);
+
+            // Cache the saved attendance for instant loading next time
+            setCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate, attendance);
 
             // Clear success after 3 seconds
             setTimeout(() => setSaveSuccess(false), 3000);
