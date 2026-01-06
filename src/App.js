@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
@@ -11,14 +11,28 @@ import {
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { APP_ID } from './constants';
-
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { Timesheets } from './pages/Timesheets';
-import { Profile } from './pages/Profile';
 import { AppLayout } from './layouts/AppLayout';
 
+// Lazy load pages for code splitting (faster initial load)
+const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Timesheets = lazy(() => import('./pages/Timesheets').then(module => ({ default: module.Timesheets })));
+const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 
+// Loading Component
+const LoadingFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-body)' }}>
+    <div className="loading-spinner" style={{
+      width: '40px',
+      height: '40px',
+      border: '3px solid rgba(67, 97, 238, 0.3)',
+      borderRadius: '50%',
+      borderTopColor: 'var(--primary)',
+      animation: 'spin 1s ease-in-out infinite'
+    }}></div>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 // --- Main Component ---
 export default function App() {
@@ -75,7 +89,7 @@ export default function App() {
   };
 
   if (authLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-body)' }}>Loading...</div>;
+    return <LoadingFallback />;
   }
 
   // --- Route Guard ---
@@ -88,53 +102,53 @@ export default function App() {
 
   return (
     <Router>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} onSignup={handleSignup} />
-          }
-        />
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} onSignup={handleSignup} />
+            }
+          />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <AppLayout user={user} onLogout={handleLogout}>
-                <Dashboard user={user} />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <AppLayout user={user} onLogout={handleLogout}>
+                  <Dashboard user={user} />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/timesheets"
-          element={
-            <ProtectedRoute>
-              <AppLayout user={user} onLogout={handleLogout}>
-                <Timesheets user={user} />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/timesheets"
+            element={
+              <ProtectedRoute>
+                <AppLayout user={user} onLogout={handleLogout}>
+                  <Timesheets user={user} />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <AppLayout user={user} onLogout={handleLogout}>
-                <Profile user={user} />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <AppLayout user={user} onLogout={handleLogout}>
+                  <Profile user={user} />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Placeholders for other routes */}
-        <Route path="/analytics" element={<Navigate to="/" replace />} />
-        <Route path="/team" element={<Navigate to="/" replace />} />
-      </Routes>
-
-
+          {/* Placeholders for other routes */}
+          <Route path="/analytics" element={<Navigate to="/" replace />} />
+          <Route path="/team" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </Router >
   );
 }

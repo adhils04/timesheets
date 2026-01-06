@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
     collection,
     query,
@@ -7,11 +7,12 @@ import {
     getDocs,
     orderBy,
     limit,
-    Timestamp
+    Timestamp,
+    doc,
+    setDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { APP_ID, COLLECTION_NAME } from '../constants';
-import { getCachedData, setCachedData, CACHE_KEYS } from '../utils/cache';
 
 const getDataCollection = () => collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME);
 
@@ -58,12 +59,10 @@ export const useActiveEntry = (user, selectedFounder) => {
     return { activeEntry, loading };
 };
 
-// Hook for Recent History - INSTANT with cache, then background update
+// Hook for Recent History - Standard Firestore Listener (No browser cache)
 export const useRecentEntries = (user, limitCount = 10) => {
-    // Initialize from cache immediately (synchronous)
-    const cachedEntries = getCachedData(CACHE_KEYS.RECENT_ENTRIES);
-    const [entries, setEntries] = useState(cachedEntries || []);
-    const [loading, setLoading] = useState(!cachedEntries);
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!user) {
@@ -78,75 +77,36 @@ export const useRecentEntries = (user, limitCount = 10) => {
             limit(limitCount)
         );
 
-        // If we have cache, we're already showing data - just update silently
-        const processSnapshot = (snapshot) => {
-            const loaded = snapshot.docs.map(doc => {
-                const data = doc.data({ serverTimestamps: 'estimate' });
-                return {
-                    id: doc.id,
-                    ...data,
-                    // Store as ISO strings for cache compatibility
-                    startTime: data.startTime?.toDate()?.toISOString(),
-                    endTime: data.endTime?.toDate()?.toISOString(),
-                };
-            });
-
-            // Convert back to Date objects for display
-            const withDates = loaded.map(entry => ({
-                ...entry,
-                startTime: entry.startTime ? new Date(entry.startTime) : null,
-                endTime: entry.endTime ? new Date(entry.endTime) : null,
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const loaded = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data({ serverTimestamps: 'estimate' }),
+                startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
+                endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
             }));
 
-            setEntries(withDates);
+            setEntries(loaded);
             setLoading(false);
-
-            // Cache the data (with ISO strings)
-            setCachedData(CACHE_KEYS.RECENT_ENTRIES, loaded);
-        };
-
-        // If no cache, do initial getDocs for faster first load
-        if (!cachedEntries) {
-            getDocs(q).then((snapshot) => {
-                processSnapshot(snapshot);
-            }).catch(err => {
-                console.error("Recent entries error:", err);
-                setLoading(false);
-            });
-        }
-
-        // Subscribe for real-time updates (background refresh)
-        const unsubscribe = onSnapshot(q, processSnapshot, (err) => {
-            console.error("Recent entries snapshot error:", err);
+        }, (err) => {
+            console.error("Recent entries error:", err);
+            setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [user, limitCount, cachedEntries]);
+    }, [user, limitCount]);
 
     return { entries, loading };
 };
 
-// Helper to get stats collection query
-const getStatsQuery = (startDate, endDate = null) => {
-    const filters = [where('startTime', '>=', Timestamp.fromDate(startDate))];
-    if (endDate) {
-        filters.push(where('startTime', '<', Timestamp.fromDate(endDate)));
-    }
-    return query(getDataCollection(), ...filters);
-};
-
-// Optimized Hook for Stats - INSTANT with cache, then background update
+// Optimized Hook for Stats - Fetches PRE-CALCULATED Aggregates from DB
 export const useStats = (user) => {
-    // Initialize from cache immediately (synchronous)
-    const cachedStats = getCachedData(CACHE_KEYS.STATS);
-    const [stats, setStats] = useState(cachedStats || {
+    const [stats, setStats] = useState({
         monthTotal: 0,
         yearTotal: 0,
         founderStats: {},
         activeCount: 0
     });
-    const [loading, setLoading] = useState(!cachedStats);
-    const hasLoadedRef = useRef(!!cachedStats);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!user) {
@@ -154,93 +114,79 @@ export const useStats = (user) => {
             return;
         }
 
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        const startOfMonthMs = startOfMonth.getTime();
+        // Reference to the single aggregate stats document
+        const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
 
-        // Calculate stats from documents
-        const calculateStats = (docs) => {
-            let monthTotal = 0;
-            let yearTotal = 0;
-            let activeCount = 0;
-            const founderStats = {};
-
-            docs.forEach(doc => {
-                const data = doc.data();
-                const founder = data.founder;
-
-                if (!founder) return;
-                if (!founderStats[founder]) founderStats[founder] = { month: 0, year: 0 };
-
-                if (!data.endTime) {
-                    activeCount++;
-                    return;
-                }
-
-                const sTime = data.startTime?.seconds ? data.startTime.seconds * 1000 : 0;
-                const eTime = data.endTime?.seconds ? data.endTime.seconds * 1000 : 0;
-                const duration = eTime - sTime;
-
-                yearTotal += duration;
-                founderStats[founder].year += duration;
-
-                if (sTime >= startOfMonthMs) {
-                    monthTotal += duration;
-                    founderStats[founder].month += duration;
-                }
-            });
-
-            return { monthTotal, yearTotal, founderStats, activeCount };
-        };
-
-        const q = getStatsQuery(startOfYear);
-
-        const updateStats = (calculatedStats) => {
-            setStats(calculatedStats);
-            setLoading(false);
-            hasLoadedRef.current = true;
-            // Cache the stats
-            setCachedData(CACHE_KEYS.STATS, calculatedStats);
-        };
-
-        // If no cache, use getDocs for initial load
-        if (!cachedStats) {
-            getDocs(q).then(snapshot => {
-                updateStats(calculateStats(snapshot.docs));
-            }).catch(err => {
-                console.error("Stats getDocs error:", err);
+        const unsubscribe = onSnapshot(statsRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                // DATA EXISTS: Use the pre-calculated DB values (INSTANT)
+                setStats(docSnap.data());
                 setLoading(false);
-            });
-        }
+            } else {
+                // MIGRATION: First run only!
+                console.log("Stats document missing. performing one-time migration...");
 
-        // Subscribe for real-time updates (background refresh)
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            updateStats(calculateStats(snapshot.docs));
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                // const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const startOfMonthMs = startOfMonth.getTime();
+
+                // Fetch ALL raw data to calculate initial totals
+                const q = query(getDataCollection());
+                const snapshot = await getDocs(q);
+
+                let monthTotal = 0;
+                let yearTotal = 0;
+                let activeCount = 0;
+                const founderStats = {};
+
+                snapshot.docs.forEach(d => {
+                    const data = d.data();
+                    const founder = data.founder;
+                    if (!founder) return;
+
+                    if (!founderStats[founder]) founderStats[founder] = { month: 0, year: 0 };
+
+                    if (!data.endTime) {
+                        activeCount++;
+                        return;
+                    }
+
+                    const sTime = data.startTime?.seconds ? data.startTime.seconds * 1000 : 0;
+                    const eTime = data.endTime?.seconds ? data.endTime.seconds * 1000 : 0;
+                    const duration = eTime - sTime;
+
+                    yearTotal += duration;
+                    founderStats[founder].year += duration;
+
+                    if (sTime >= startOfMonthMs) {
+                        monthTotal += duration;
+                        founderStats[founder].month += duration;
+                    }
+                });
+
+                const computedStats = { monthTotal, yearTotal, founderStats, activeCount };
+
+                // Save to DB so future loads are instant
+                await setDoc(statsRef, computedStats);
+                setStats(computedStats);
+                setLoading(false);
+            }
         }, (err) => {
             console.error("Stats snapshot error:", err);
+            setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [user, cachedStats]);
+    }, [user]);
 
     return { stats, loading };
 };
 
-// Progressive loading for Timesheets page - INSTANT with cache
+// Progressive loading for Timesheets page (No cache)
 export const useTimesheets = (user) => {
-    // Initialize from cache immediately
-    const cachedTimesheets = getCachedData('timesheets_all');
-    const [entries, setEntries] = useState(() => {
-        if (!cachedTimesheets) return [];
-        // Convert ISO strings back to Date objects
-        return cachedTimesheets.map(entry => ({
-            ...entry,
-            startTime: entry.startTime ? new Date(entry.startTime) : null,
-            endTime: entry.endTime ? new Date(entry.endTime) : null,
-        }));
-    });
-    const [loading, setLoading] = useState(!cachedTimesheets);
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
 
     useEffect(() => {
@@ -250,63 +196,51 @@ export const useTimesheets = (user) => {
             return;
         }
 
-        const processSnapshot = (snapshot, isPartial = false) => {
-            const loadedEntries = snapshot.docs.map(doc => {
-                const data = doc.data({ serverTimestamps: 'estimate' });
-                return {
-                    id: doc.id,
-                    ...data,
-                    startTime: data.startTime?.toDate()?.toISOString(),
-                    endTime: data.endTime?.toDate()?.toISOString(),
-                };
-            });
+        // PHASE 1: Load recent 50 entries
+        const qRecent = query(
+            getDataCollection(),
+            orderBy('startTime', 'desc'),
+            limit(50)
+        );
 
-            const withDates = loadedEntries.map(entry => ({
-                ...entry,
-                startTime: entry.startTime ? new Date(entry.startTime) : null,
-                endTime: entry.endTime ? new Date(entry.endTime) : null,
+        getDocs(qRecent).then(snapshot => {
+            const loadedEntries = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data({ serverTimestamps: 'estimate' }),
+                startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
+                endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
             }));
-
-            setEntries(withDates);
+            setEntries(loadedEntries);
             setLoading(false);
 
-            if (!isPartial) {
-                setLoadingMore(false);
-                // Cache all entries
-                setCachedData('timesheets_all', loadedEntries);
-            } else if (loadedEntries.length === 50) {
+            if (loadedEntries.length === 50) {
                 setLoadingMore(true);
             }
-        };
+        }).catch(err => {
+            console.error("Timesheets getDocs error:", err);
+            setLoading(false);
+        });
 
-        // If no cache, load initial 50 entries first
-        if (!cachedTimesheets) {
-            const qRecent = query(
-                getDataCollection(),
-                orderBy('startTime', 'desc'),
-                limit(50)
-            );
-
-            getDocs(qRecent).then(snapshot => {
-                processSnapshot(snapshot, true);
-            }).catch(err => {
-                console.error("Timesheets getDocs error:", err);
-                setLoading(false);
-            });
-        }
-
-        // Subscribe for real-time updates (all entries)
+        // PHASE 2: Subscribe for real-time updates (Limited to recent 100)
         const qAll = query(
             getDataCollection(),
-            orderBy('startTime', 'desc')
+            orderBy('startTime', 'desc'),
+            limit(100)
         );
 
         const unsubscribe = onSnapshot(qAll, (snapshot) => {
-            processSnapshot(snapshot, false);
+            const allEntries = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data({ serverTimestamps: 'estimate' }),
+                startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
+                endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
+            }));
+            setEntries(allEntries);
+            setLoadingMore(false);
         });
 
         return () => unsubscribe();
-    }, [user, cachedTimesheets]);
+    }, [user]);
 
     return { entries, loading, loadingMore };
 }

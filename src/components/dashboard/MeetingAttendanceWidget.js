@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, onSnapshot, increment } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { FOUNDERS, APP_ID } from '../../constants';
-import { getCachedData, setCachedData, CACHE_KEYS } from '../../utils/cache';
 
 // Helper to get default attendance state
 const getDefaultAttendance = () =>
@@ -10,21 +9,16 @@ const getDefaultAttendance = () =>
 
 export const MeetingAttendanceWidget = React.memo(() => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attendance, setAttendance] = useState(getDefaultAttendance());
+    const [originalAttendance, setOriginalAttendance] = useState(getDefaultAttendance());
 
-    // Initialize attendance from cache for today's date
-    const todayKey = new Date().toISOString().split('T')[0];
-    const cachedTodayAttendance = getCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + todayKey);
-    const [attendance, setAttendance] = useState(cachedTodayAttendance || getDefaultAttendance());
-    const [originalAttendance, setOriginalAttendance] = useState(cachedTodayAttendance || getDefaultAttendance());
-
-    const [isNewEntry, setIsNewEntry] = useState(!cachedTodayAttendance);
-    const [loading, setLoading] = useState(!cachedTodayAttendance || selectedDate !== todayKey);
+    const [isNewEntry, setIsNewEntry] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
-    // Initialize stats from cache immediately
-    const cachedStats = getCachedData(CACHE_KEYS.MEETING_STATS);
-    const [stats, setStats] = useState(cachedStats || {
+    // Stats state
+    const [stats, setStats] = useState({
         founderStats: {},
         yearlyTotal: 0,
         totalMeetings: 0
@@ -33,26 +27,13 @@ export const MeetingAttendanceWidget = React.memo(() => {
     // Track loaded dates to know which are new vs existing
     const loadedDatesRef = useRef(new Set());
 
-    // Fetch attendance for the selected date
+    // --- 1. Fetch Attendance for Selected Date ---
     useEffect(() => {
         let cancelled = false;
+        setLoading(true);
+        setSaveSuccess(false);
 
         const fetchAttendance = async () => {
-            // Check cache first
-            const cachedAttendance = getCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate);
-            if (cachedAttendance) {
-                setAttendance(cachedAttendance);
-                setOriginalAttendance(cachedAttendance);
-                setIsNewEntry(false);
-                setLoading(false);
-                loadedDatesRef.current.add(selectedDate);
-                // Still fetch from server in background to ensure freshness
-            } else {
-                setLoading(true);
-            }
-
-            setSaveSuccess(false);
-
             try {
                 const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate);
                 const docSnap = await getDoc(docRef);
@@ -61,16 +42,12 @@ export const MeetingAttendanceWidget = React.memo(() => {
 
                 if (docSnap.exists()) {
                     const data = docSnap.data().attendance || {};
-                    // Ensure all founders have a value
                     const fullData = { ...getDefaultAttendance(), ...data };
                     setAttendance(fullData);
                     setOriginalAttendance(fullData);
                     setIsNewEntry(false);
                     loadedDatesRef.current.add(selectedDate);
-                    // Cache this attendance
-                    setCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate, fullData);
-                } else if (!cachedAttendance) {
-                    // Only reset to defaults if we didn't have cache
+                } else {
                     const defaults = getDefaultAttendance();
                     setAttendance(defaults);
                     setOriginalAttendance(defaults);
@@ -78,73 +55,66 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 }
             } catch (error) {
                 console.error("Error fetching attendance:", error);
-                // On error, only reset if we don't have cache
-                if (!cachedAttendance) {
-                    const defaults = getDefaultAttendance();
-                    setAttendance(defaults);
-                    setOriginalAttendance(defaults);
-                    setIsNewEntry(true);
-                }
             } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
+                if (!cancelled) setLoading(false);
             }
         };
 
         fetchAttendance();
-
         return () => { cancelled = true; };
     }, [selectedDate]);
 
-    // Fetch overall stats on mount - use cache for instant display
+    // --- 2. Real-time Aggregated Stats (Read + Migration) ---
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const q = query(
-                    collection(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance'),
-                    orderBy('date', 'desc')
-                );
-                const querySnapshot = await getDocs(q);
+        const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
 
-                const founderCounts = FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {});
-                let yearlyCount = 0;
-                let totalMeetingsCount = 0;
-                const currentYear = new Date().getFullYear();
+        const unsubscribe = onSnapshot(statsRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
 
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const docDate = new Date(data.date);
-                    totalMeetingsCount++;
+                // If meeting stats exist, use them
+                if (data.meetingStats) {
+                    setStats(data.meetingStats);
+                } else {
+                    // MIGRATION: Calculate meeting stats and save to DB
+                    console.log("Meeting stats missing. Migrating...");
+                    const q = query(
+                        collection(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance')
+                    );
+                    const snapshot = await getDocs(q);
 
-                    if (docDate.getFullYear() === currentYear) {
-                        yearlyCount++;
-                    }
+                    const founderCounts = FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {});
+                    let yearlyCount = 0;
+                    let totalMeetingsCount = 0;
+                    const currentYear = new Date().getFullYear();
 
-                    if (data.attendance) {
-                        Object.entries(data.attendance).forEach(([founder, attended]) => {
-                            if (attended && founderCounts[founder] !== undefined) {
-                                founderCounts[founder]++;
-                            }
-                        });
-                    }
-                });
+                    snapshot.forEach((doc) => {
+                        const d = doc.data();
+                        totalMeetingsCount++;
+                        const dDate = new Date(d.date);
+                        if (dDate.getFullYear() === currentYear) yearlyCount++;
 
-                const newStats = {
-                    founderStats: founderCounts,
-                    yearlyTotal: yearlyCount,
-                    totalMeetings: totalMeetingsCount
-                };
+                        if (d.attendance) {
+                            Object.entries(d.attendance).forEach(([founder, attended]) => {
+                                if (attended) founderCounts[founder]++;
+                            });
+                        }
+                    });
 
-                setStats(newStats);
-                // Cache the stats
-                setCachedData(CACHE_KEYS.MEETING_STATS, newStats);
-            } catch (error) {
-                console.error("Error fetching stats:", error);
+                    const newStats = {
+                        founderStats: founderCounts,
+                        yearlyTotal: yearlyCount,
+                        totalMeetings: totalMeetingsCount
+                    };
+
+                    // Save to DB (merge with existing duration stats)
+                    await setDoc(statsRef, { meetingStats: newStats }, { merge: true });
+                    setStats(newStats);
+                }
             }
-        };
+        });
 
-        fetchStats();
+        return () => unsubscribe();
     }, []);
 
     const handleCheckboxChange = (founder) => {
@@ -159,74 +129,49 @@ export const MeetingAttendanceWidget = React.memo(() => {
         setSaveSuccess(false);
 
         try {
-            // Calculate stats diff BEFORE save
+            // Update Aggregates Atomically
+            const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
             const currentYear = new Date().getFullYear();
             const meetingDate = new Date(selectedDate);
             const isThisYear = meetingDate.getFullYear() === currentYear;
-            const wasNewEntry = isNewEntry;
 
-            // Optimistic stats update
-            setStats(prevStats => {
-                const newStats = { ...prevStats };
-                const newFounderStats = { ...prevStats.founderStats };
+            const updates = {};
 
-                // If new entry, increment totals
-                if (wasNewEntry) {
-                    newStats.totalMeetings += 1;
-                    if (isThisYear) {
-                        newStats.yearlyTotal += 1;
-                    }
+            // If new meeting, increment totals
+            if (isNewEntry) {
+                updates['meetingStats.totalMeetings'] = increment(1);
+                if (isThisYear) {
+                    updates['meetingStats.yearlyTotal'] = increment(1);
                 }
-
-                // Update founder counts based on diff from original
-                FOUNDERS.forEach(founder => {
-                    const wasAttending = originalAttendance[founder] || false;
-                    const isAttending = attendance[founder] || false;
-
-                    if (isAttending && !wasAttending) {
-                        newFounderStats[founder] = (newFounderStats[founder] || 0) + 1;
-                    } else if (!isAttending && wasAttending) {
-                        newFounderStats[founder] = Math.max(0, (newFounderStats[founder] || 0) - 1);
-                    }
-                });
-
-                newStats.founderStats = newFounderStats;
-                return newStats;
-            });
-
-            // Perform save (fire and forget with timeout)
-            const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate);
-
-            // Create save promise
-            const saveData = {
-                date: selectedDate,
-                attendance: attendance,
-                updatedAt: new Date().toISOString() // Use client timestamp to avoid serverTimestamp issues
-            };
-
-            // Try to save with timeout
-            const savePromise = setDoc(docRef, saveData, { merge: true });
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('timeout')), 8000)
-            );
-
-            try {
-                await Promise.race([savePromise, timeoutPromise]);
-            } catch (timeoutError) {
-                console.warn("Save timed out, but data may still sync later:", timeoutError);
-                // Continue anyway - the save will complete in background
             }
 
-            // Update local state to reflect save
+            // Increment/Decrement founder counts based on diff
+            FOUNDERS.forEach(founder => {
+                const wasAttending = isNewEntry ? false : (originalAttendance[founder] || false);
+                const isAttending = attendance[founder] || false;
+
+                if (isAttending && !wasAttending) {
+                    updates[`meetingStats.founderStats.${founder}`] = increment(1);
+                } else if (!isAttending && wasAttending) {
+                    updates[`meetingStats.founderStats.${founder}`] = increment(-1);
+                }
+            });
+
+            // Perform both updates in parallel
+            await Promise.all([
+                setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate), {
+                    date: selectedDate,
+                    attendance: attendance,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true }),
+                // Only update stats if there are changes
+                Object.keys(updates).length > 0 ? setDoc(statsRef, updates, { merge: true }) : Promise.resolve()
+            ]);
+
             setOriginalAttendance({ ...attendance });
             setIsNewEntry(false);
             loadedDatesRef.current.add(selectedDate);
             setSaveSuccess(true);
-
-            // Cache the saved attendance for instant loading next time
-            setCachedData(CACHE_KEYS.ATTENDANCE_PREFIX + selectedDate, attendance);
-
-            // Clear success after 3 seconds
             setTimeout(() => setSaveSuccess(false), 3000);
 
         } catch (error) {
@@ -393,7 +338,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 </div>
             </div>
 
-            {/* CSS for spinner animation */}
             <style>{`
                 @keyframes spin {
                     to { transform: rotate(360deg); }

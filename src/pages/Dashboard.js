@@ -5,8 +5,11 @@ import {
     updateDoc,
     deleteDoc,
     doc,
+    getDoc,
+    setDoc,
     serverTimestamp,
-    Timestamp
+    Timestamp,
+    increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useActiveEntry, useRecentEntries, useStats } from '../hooks/useTimesheets';
@@ -31,8 +34,38 @@ export const Dashboard = ({ user }) => {
     const { stats, loading: statsLoading } = useStats(user);
 
 
+    // --- Helper to update stats ---
+    const updateStatsInDb = async (founder, duration, date) => {
+        try {
+            const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
+            const now = new Date();
+            const entryDate = date || now;
+
+            const isThisMonth = entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
+            const isThisYear = entryDate.getFullYear() === now.getFullYear();
+
+            const updates = {
+                [`founderStats.${founder}.year`]: increment(duration),
+            };
+
+            if (isThisYear) {
+                updates.yearTotal = increment(duration);
+            }
+
+            if (isThisMonth) {
+                updates.monthTotal = increment(duration);
+                updates[`founderStats.${founder}.month`] = increment(duration);
+            } else if (isThisYear) {
+                // If entry is this year but not this month, we still updated year/founder year above
+            }
+
+            await setDoc(statsRef, updates, { merge: true });
+        } catch (e) {
+            console.error("Failed to update stats:", e);
+        }
+    };
+
     // --- Actions ---
-    // Memoizing actions to ensure props to widgets are stable
     const handleClockIn = useCallback(async (finalTask) => {
         if (!user || !finalTask.trim()) return;
 
@@ -53,11 +86,19 @@ export const Dashboard = ({ user }) => {
         if (!user || !activeEntry) return;
 
         try {
+            const endTime = new Date(); // Use client time for accurate immediate stats
+            const startTime = activeEntry.startTime; // This is a Date object from the hook
+            const duration = endTime.getTime() - startTime.getTime();
+
             const entryRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, activeEntry.id);
             await updateDoc(entryRef, {
-                endTime: serverTimestamp(),
+                endTime: Timestamp.fromDate(endTime),
                 status: 'completed'
             });
+
+            // Update Aggregates
+            await updateStatsInDb(activeEntry.founder, duration, endTime);
+
         } catch (err) {
             console.error("Error clocking out:", err);
         }
@@ -74,6 +115,8 @@ export const Dashboard = ({ user }) => {
             return;
         }
 
+        const duration = end.getTime() - start.getTime();
+
         try {
             await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME), {
                 founder: selectedFounder,
@@ -82,6 +125,10 @@ export const Dashboard = ({ user }) => {
                 endTime: Timestamp.fromDate(end),
                 status: 'manual'
             });
+
+            // Update Aggregates
+            await updateStatsInDb(selectedFounder, duration, start);
+
         } catch (err) {
             console.error("Error adding manual entry:", err);
         }
@@ -90,13 +137,27 @@ export const Dashboard = ({ user }) => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Are you sure you want to delete this entry?')) return;
         try {
-            await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, id));
+            // Fetch doc first to get duration for stats correction
+            const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.endTime && data.startTime) {
+                    const start = data.startTime.toDate ? data.startTime.toDate() : new Date(data.startTime);
+                    const end = data.endTime.toDate ? data.endTime.toDate() : new Date(data.endTime);
+                    const duration = end.getTime() - start.getTime();
+
+                    // Decrement stats
+                    await updateStatsInDb(data.founder, -duration, start);
+                }
+            }
+
+            await deleteDoc(docRef);
         } catch (err) {
             console.error("Error deleting:", err);
         }
     }, []);
-
-
 
 
     return (
