@@ -52,17 +52,25 @@ export const Dashboard = ({ user, forcedFounder }) => {
             const isThisMonth = entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
             const isThisYear = entryDate.getFullYear() === now.getFullYear();
 
+            // Construct updates with nested objects to ensure setDoc treats them as hierarchy, NOT flat keys
+            const founderUpdates = {
+                year: increment(duration)
+            };
+            if (isThisMonth) {
+                founderUpdates.month = increment(duration);
+            }
+
             const updates = {
-                [`founderStats.${founder}.year`]: increment(duration),
+                founderStats: {
+                    [founder]: founderUpdates
+                }
             };
 
             if (isThisYear) {
                 updates.yearTotal = increment(duration);
             }
-
             if (isThisMonth) {
                 updates.monthTotal = increment(duration);
-                updates[`founderStats.${founder}.month`] = increment(duration);
             }
 
             await setDoc(statsRef, updates, { merge: true });
@@ -176,9 +184,6 @@ export const Dashboard = ({ user, forcedFounder }) => {
 
                     // Decrement stats
                     await updateStatsInDb(data.founder, -duration, start);
-
-                    // Note: If deleting an ACTIVE entry (which shouldn't happen here usually), fix activeCount.
-                    // But history widget usually shows completed.
                 }
             }
 
@@ -197,8 +202,6 @@ export const Dashboard = ({ user, forcedFounder }) => {
                 ))}
             </datalist>
 
-            {/* If forcedFounder is set, TopBar should NOT show selector, or handle it? */}
-            {/* TopBar usually shows selector. We can pass setSelectedFounder only if not forced? */}
             <TopBar
                 selectedFounder={selectedFounder}
                 setSelectedFounder={forcedFounder ? undefined : setSelectedFounder} // Disable selection if forced

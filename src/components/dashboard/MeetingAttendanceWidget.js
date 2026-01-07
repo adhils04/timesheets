@@ -99,7 +99,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     });
                 }
             } else {
-                // Stats document doesn't exist - use empty defaults
                 setStats({
                     founderStats: FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {}),
                     yearlyTotal: 0,
@@ -131,27 +130,44 @@ export const MeetingAttendanceWidget = React.memo(() => {
             const meetingDate = new Date(selectedDate);
             const isThisYear = meetingDate.getFullYear() === currentYear;
 
-            const updates = {};
+            // Construct updates using nested objects to ensure strict hierarchy
+            // Does NOT use dot notation keys for setDoc, to avoid flat-key bug
+            const meetingUpdates = {};
 
             // If new meeting, increment totals
             if (isNewEntry) {
-                updates['meetingStats.totalMeetings'] = increment(1);
+                meetingUpdates.totalMeetings = increment(1);
                 if (isThisYear) {
-                    updates['meetingStats.yearlyTotal'] = increment(1);
+                    meetingUpdates.yearlyTotal = increment(1);
                 }
             }
 
             // Increment/Decrement founder counts based on diff
+            const founderUpdates = {};
+            let hasFounderChanges = false;
+
             FOUNDERS.forEach(founder => {
                 const wasAttending = isNewEntry ? false : (originalAttendance[founder] || false);
                 const isAttending = attendance[founder] || false;
 
                 if (isAttending && !wasAttending) {
-                    updates[`meetingStats.founderStats.${founder}`] = increment(1);
+                    founderUpdates[founder] = increment(1);
+                    hasFounderChanges = true;
                 } else if (!isAttending && wasAttending) {
-                    updates[`meetingStats.founderStats.${founder}`] = increment(-1);
+                    founderUpdates[founder] = increment(-1);
+                    hasFounderChanges = true;
                 }
             });
+
+            if (hasFounderChanges) {
+                meetingUpdates.founderStats = founderUpdates;
+            }
+
+            const finalUpdates = {
+                meetingStats: meetingUpdates
+            };
+
+            const shouldUpdateStats = Object.keys(meetingUpdates).length > 0;
 
             // Perform both updates in parallel with timeout
             const updatePromise = Promise.all([
@@ -161,7 +177,7 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     updatedAt: new Date().toISOString()
                 }, { merge: true }),
                 // Only update stats if there are changes
-                Object.keys(updates).length > 0 ? setDoc(statsRef, updates, { merge: true }) : Promise.resolve()
+                shouldUpdateStats ? setDoc(statsRef, finalUpdates, { merge: true }) : Promise.resolve()
             ]);
 
             // Timeout race
@@ -344,7 +360,7 @@ export const MeetingAttendanceWidget = React.memo(() => {
                             </thead>
                             <tbody>
                                 {FOUNDERS.map((founder, index) => {
-                                    const count = stats.founderStats[founder] || 0;
+                                    const count = stats.founderStats?.[founder] || 0;
                                     const total = stats.totalMeetings || 1;
                                     const rate = Math.round((count / total) * 100);
 
