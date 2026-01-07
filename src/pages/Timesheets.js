@@ -9,7 +9,7 @@ import { formatDuration, formatDate, getInitials } from '../utils';
 
 export const Timesheets = ({ user }) => {
     const [selectedFounder, setSelectedFounder] = useState(FOUNDERS[0]);
-    const { entries, loading, loadingMore } = useTimesheets(user);
+    const { entries, loading } = useTimesheets(user);
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this entry?')) return;
@@ -33,11 +33,6 @@ export const Timesheets = ({ user }) => {
             <div className="card history-section" style={{ marginTop: '2rem' }}>
                 <h3 style={{ fontSize: '1.1rem', margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <HistoryIcon size={20} /> All Entries (Year To Date)
-                    {loadingMore && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                            (Loading older entries...)
-                        </span>
-                    )}
                 </h3>
 
                 {entries.length === 0 ? (

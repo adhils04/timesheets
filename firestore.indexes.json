@@ -1,0 +1,29 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "timesheets",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "founder",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "endTime",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "timesheets",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "startTime",
+                    "order": "DESCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

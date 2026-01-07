@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, onSnapshot, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, increment } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { FOUNDERS, APP_ID } from '../../constants';
 
@@ -64,11 +64,11 @@ export const MeetingAttendanceWidget = React.memo(() => {
         return () => { cancelled = true; };
     }, [selectedDate]);
 
-    // --- 2. Real-time Aggregated Stats (Read + Migration) ---
+    // --- 2. Real-time Aggregated Stats (Read Only) ---
     useEffect(() => {
         const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
 
-        const unsubscribe = onSnapshot(statsRef, async (docSnap) => {
+        const unsubscribe = onSnapshot(statsRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
 
@@ -76,42 +76,24 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 if (data.meetingStats) {
                     setStats(data.meetingStats);
                 } else {
-                    // MIGRATION: Calculate meeting stats and save to DB
-                    console.log("Meeting stats missing. Migrating...");
-                    const q = query(
-                        collection(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance')
-                    );
-                    const snapshot = await getDocs(q);
-
-                    const founderCounts = FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {});
-                    let yearlyCount = 0;
-                    let totalMeetingsCount = 0;
-                    const currentYear = new Date().getFullYear();
-
-                    snapshot.forEach((doc) => {
-                        const d = doc.data();
-                        totalMeetingsCount++;
-                        const dDate = new Date(d.date);
-                        if (dDate.getFullYear() === currentYear) yearlyCount++;
-
-                        if (d.attendance) {
-                            Object.entries(d.attendance).forEach(([founder, attended]) => {
-                                if (attended) founderCounts[founder]++;
-                            });
-                        }
+                    // No meeting stats yet - use empty defaults
+                    console.warn("Meeting stats don't exist yet. They will be created when you save attendance.");
+                    setStats({
+                        founderStats: FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {}),
+                        yearlyTotal: 0,
+                        totalMeetings: 0
                     });
-
-                    const newStats = {
-                        founderStats: founderCounts,
-                        yearlyTotal: yearlyCount,
-                        totalMeetings: totalMeetingsCount
-                    };
-
-                    // Save to DB (merge with existing duration stats)
-                    await setDoc(statsRef, { meetingStats: newStats }, { merge: true });
-                    setStats(newStats);
                 }
+            } else {
+                // Stats document doesn't exist - use empty defaults
+                setStats({
+                    founderStats: FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {}),
+                    yearlyTotal: 0,
+                    totalMeetings: 0
+                });
             }
+        }, (err) => {
+            console.error("Meeting stats error:", err);
         });
 
         return () => unsubscribe();
