@@ -1,100 +1,92 @@
-import React, { memo } from 'react';
-import { Clock, Calendar, Briefcase } from 'lucide-react';
-import { formatDuration, getInitials } from '../../utils';
-import { FOUNDERS } from '../../constants';
+import React from 'react';
+import { Clock, Calendar, Briefcase, Activity } from 'lucide-react';
 
-const SkeletonLoader = ({ width = '80px', height = '32px' }) => (
-    <div
-        className="skeleton-loader"
-        style={{
-            width,
-            height,
-            background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
-            backgroundSize: '200% 100%',
-            animation: 'shimmer 1.5s infinite',
-            borderRadius: '4px',
-            display: 'inline-block'
-        }}
-    />
-);
+export const StatsWidget = ({ stats, loading, foundersList = [] }) => {
 
-export const StatsWidget = memo(({ stats, loading }) => {
-    const isDataReady = stats && (stats.monthTotal > 0 || stats.yearTotal > 0 || Object.keys(stats.founderStats || {}).length > 0);
+    // Format helpers
+    const formatDuration = (ms) => {
+        if (!ms) return '0h 0m';
+        const hours = Math.floor(ms / (1000 * 60 * 60));
+        const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        return `${hours}h ${minutes}m`;
+    };
+
+    const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').substring(0, 2) : '??';
+
+    if (loading) {
+        return (
+            <>
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="card stat-card shimmer" style={{ height: '160px' }}></div>
+                ))}
+                <div className="card breakdown-card shimmer" style={{ height: '300px' }}></div>
+            </>
+        );
+    }
 
     return (
         <>
-            <style>{`
-                @keyframes shimmer {
-                    0% { background-position: -200% 0; }
-                    100% { background-position: 200% 0; }
-                }
-            `}</style>
-
-            <div className="stat-card card animate-enter delay-100">
-                <div>
-                    <div className="stat-icon-wrapper blue">
-                        <Clock size={24} />
-                    </div>
-                    <div className="stat-label">Total Hours (Month)</div>
-                    <div className="stat-value">
-                        {loading && !isDataReady ? (
-                            <SkeletonLoader width="80px" height="32px" />
-                        ) : (
-                            formatDuration(stats.monthTotal || 0)
-                        )}
-                    </div>
+            {/* Main Stats Cards */}
+            <div className="card stat-card">
+                <div className="stat-icon-wrapper blue">
+                    <Clock size={24} />
                 </div>
+                <div className="stat-label">Total Hours (Month)</div>
+                <div className="stat-value">{formatDuration(stats.monthTotal)}</div>
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: 'var(--primary)' }}></div>
             </div>
 
-            <div className="stat-card card animate-enter delay-200">
-                <div>
-                    <div className="stat-icon-wrapper green">
-                        <Calendar size={24} />
-                    </div>
-                    <div className="stat-label">Total Hours (Year)</div>
-                    <div className="stat-value">
-                        {loading && !isDataReady ? (
-                            <SkeletonLoader width="80px" height="32px" />
-                        ) : (
-                            formatDuration(stats.yearTotal || 0)
-                        )}
-                    </div>
+            <div className="card stat-card">
+                <div className="stat-icon-wrapper green">
+                    <Calendar size={24} />
                 </div>
+                <div className="stat-label">Total Hours (Year)</div>
+                <div className="stat-value">{formatDuration(stats.yearTotal)}</div>
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: '#10b981' }}></div>
             </div>
 
-            <div className="stat-card card animate-enter delay-300">
-                <div>
-                    <div className="stat-icon-wrapper purple">
-                        <Briefcase size={24} />
-                    </div>
-                    <div className="stat-label">Active Sessions</div>
-                    <div className="stat-value">
-                        {loading && !isDataReady ? (
-                            <SkeletonLoader width="40px" height="32px" />
-                        ) : (
-                            stats.activeCount || 0
-                        )}
-                    </div>
+            <div className="card stat-card">
+                <div className="stat-icon-wrapper purple">
+                    <Briefcase size={24} />
                 </div>
+                <div className="stat-label">Active Sessions</div>
+                <div className="stat-value">{stats.activeCount || 0}</div>
+                <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: '#7209b7' }}></div>
             </div>
 
-            <div className="breakdown-card card animate-enter delay-400">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 1rem 0' }}>Yearly Breakdown</h3>
+            {/* Yearly Breakdown List */}
+            <div className="card breakdown-card">
+                <div className="timer-header">
+                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Yearly Breakdown</h3>
+                    <Activity size={18} color="var(--text-muted)" />
+                </div>
+
                 <div className="breakdown-list">
-                    {FOUNDERS.map(f => (
-                        <div key={f} className="breakdown-item">
-                            <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{getInitials(f)}</span>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>
-                                {loading && !isDataReady ? (
-                                    <SkeletonLoader width="60px" height="20px" />
-                                ) : (
-                                    formatDuration(stats.founderStats?.[f]?.year || 0)
-                                )}
-                            </span>
+                    {/* Render breakdown based on passed foundersList */}
+                    {foundersList.map(founder => {
+                        const duration = stats.founderStats?.[founder]?.year || 0;
+                        return (
+                            <div key={founder} className="breakdown-item">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div className="history-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem', background: '#e2e8f0', marginRight: 0 }}>
+                                        {getInitials(founder)}
+                                    </div>
+                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{founder}</span>
+                                </div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                    {duration < 60000 ? '< 1m' : formatDuration(duration)}
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {foundersList.length === 0 && (
+                        <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            No data available
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </>
     );
-});
+};

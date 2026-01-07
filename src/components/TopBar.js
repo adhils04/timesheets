@@ -1,8 +1,7 @@
 import React from 'react';
 import { Users, ChevronDown } from 'lucide-react';
-import { FOUNDERS } from '../constants';
 
-export const TopBar = ({ selectedFounder, setSelectedFounder, title }) => {
+export const TopBar = ({ selectedFounder, setSelectedFounder, title, foundersList = [] }) => {
     // Helper for time-based greeting
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -12,7 +11,6 @@ export const TopBar = ({ selectedFounder, setSelectedFounder, title }) => {
     };
 
     // Parse title to extract name if it follows "Welcome, Name" pattern
-    // If personalized dashboard (forcedFounder), title is "Welcome, Name"
     const displayTitle = title.startsWith('Welcome')
         ? `${getGreeting()}, ${title.replace('Welcome, ', '')}`
         : title;
@@ -32,11 +30,11 @@ export const TopBar = ({ selectedFounder, setSelectedFounder, title }) => {
                     className="founder-select"
                     disabled={!setSelectedFounder}
                 >
-                    {FOUNDERS.map(f => <option key={f} value={f}>{f}</option>)}
-                    {/* If selectedFounder is not in FOUNDERS list (dynamic user), add option */}
-                    {!FOUNDERS.includes(selectedFounder) && (
-                        <option key={selectedFounder} value={selectedFounder}>{selectedFounder}</option>
-                    )}
+                    {/* Use passed foundersList for options */}
+                    {foundersList.map(f => <option key={f} value={f}>{f}</option>)}
+
+                    {/* Fallback if list empty or selection not in list */}
+                    {foundersList.length === 0 && <option>{selectedFounder}</option>}
                 </select>
                 <ChevronDown size={14} style={{ marginLeft: '0.5rem', opacity: 0.5 }} />
             </div>

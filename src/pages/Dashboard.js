@@ -9,7 +9,10 @@ import {
     setDoc,
     serverTimestamp,
     Timestamp,
-    increment
+    increment,
+    query,
+    where,
+    getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useActiveEntry, useRecentEntries, useStats } from '../hooks/useTimesheets';
@@ -19,30 +22,68 @@ import { TimerWidget } from '../components/dashboard/TimerWidget';
 import { HistoryWidget } from '../components/dashboard/HistoryWidget';
 import { MeetingAttendanceWidget } from '../components/dashboard/MeetingAttendanceWidget';
 import {
-    FOUNDERS,
+    FOUNDERS as FALLBACK_FOUNDERS, // Renamed to fallback
     PREDEFINED_TASKS,
     COLLECTION_NAME,
     APP_ID
 } from '../constants';
 
-// forcedFounder prop enables "Personal Dashboard" mode
 export const Dashboard = ({ user, forcedFounder }) => {
-    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
+    // Dynamic Founders List
+    const [foundersList, setFoundersList] = useState([]);
 
-    // Ensure state syncs if prop changes
+    // Fetch founders from DB if Admin Mode, otherwise just use forcedFounder
+    useEffect(() => {
+        const fetchFounders = async () => {
+            if (forcedFounder) {
+                setFoundersList([forcedFounder]);
+            } else {
+                try {
+                    const q = query(
+                        collection(db, 'artifacts', APP_ID, 'public', 'users'),
+                        where('role', '==', 'founder')
+                    );
+                    const querySnapshot = await getDocs(q);
+                    const names = querySnapshot.docs.map(doc => doc.data().fullName).filter(n => n);
+
+                    if (names.length > 0) {
+                        setFoundersList(names);
+                    } else {
+                        setFoundersList(FALLBACK_FOUNDERS); // Fallback if DB empty/error
+                    }
+                } catch (e) {
+                    console.error("Error fetching founders:", e);
+                    setFoundersList(FALLBACK_FOUNDERS);
+                }
+            }
+        };
+        fetchFounders();
+    }, [forcedFounder]);
+
+    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || (foundersList[0] || FALLBACK_FOUNDERS[0]));
+
+    // Sync state when list/forced changes
     useEffect(() => {
         if (forcedFounder) {
             setSelectedFounder(forcedFounder);
+        } else if (foundersList.length > 0 && !foundersList.includes(selectedFounder)) {
+            setSelectedFounder(foundersList[0]);
         }
-    }, [forcedFounder]);
+    }, [forcedFounder, foundersList]);
+
 
     // Use specialized hooks
     const { activeEntry, loading: activeLoading } = useActiveEntry(user, selectedFounder);
-    const { entries: recentEntries, loading: recentLoading } = useRecentEntries(user, 5);
+    const { entries: recentEntries, loading: recentLoading } = useRecentEntries(user, 5); // Note: recentEntries might need filtering by founder if Admin? 5 recent global? Or filtered? 
+    // Hook implementation usually queries ALL recent entries if no filter provided? 
+    // useRecentEntries logic in hook: query(..., orderBy(startTime), limit(n)).
+    // If we want filtering by selectedFounder in Admin view?
+    // User didn't request filtering recent entries list in Admin dashboard explicitly, just "activities... of all founders".
+    // So global list is fine.
+
     const { stats, loading: statsLoading } = useStats(user);
 
-
-    // --- Helper to update stats ---
+    // --- Stats Helpers ---
     const updateStatsInDb = async (founder, duration, date) => {
         try {
             const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
@@ -52,7 +93,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
             const isThisMonth = entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
             const isThisYear = entryDate.getFullYear() === now.getFullYear();
 
-            // Construct updates with nested objects to ensure setDoc treats them as hierarchy, NOT flat keys
+            // Nested Object Update (Safe for setDoc with merge)
             const founderUpdates = {
                 year: increment(duration)
             };
@@ -79,7 +120,6 @@ export const Dashboard = ({ user, forcedFounder }) => {
         }
     };
 
-    // --- Helper for Active Count ---
     const updateActiveCount = async (change) => {
         try {
             const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
@@ -103,13 +143,10 @@ export const Dashboard = ({ user, forcedFounder }) => {
                 endTime: null,
                 status: 'active'
             });
-
-            // Increment Active Count
             await updateActiveCount(1);
-
         } catch (err) {
             console.error("Error clocking in:", err);
-            alert("Failed to clock in. Check connection or database status.");
+            alert("Failed to clock in.");
         }
     }, [user, selectedFounder]);
 
@@ -117,8 +154,8 @@ export const Dashboard = ({ user, forcedFounder }) => {
         if (!user || !activeEntry) return;
 
         try {
-            const endTime = new Date(); // Use client time for accurate immediate stats
-            const startTime = activeEntry.startTime; // This is a Date object from the hook
+            const endTime = new Date();
+            const startTime = activeEntry.startTime;
             const duration = endTime.getTime() - startTime.getTime();
 
             const entryRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, activeEntry.id);
@@ -127,12 +164,8 @@ export const Dashboard = ({ user, forcedFounder }) => {
                 status: 'completed'
             });
 
-            // Update Aggregates (Duration)
             await updateStatsInDb(activeEntry.founder, duration, endTime);
-
-            // Decrement Active Count
             await updateActiveCount(-1);
-
         } catch (err) {
             console.error("Error clocking out:", err);
         }
@@ -140,15 +173,12 @@ export const Dashboard = ({ user, forcedFounder }) => {
 
     const handleManualSubmit = useCallback(async (finalTask, date, startTime, endTime) => {
         if (!user || !finalTask.trim()) return;
-
         const start = new Date(`${date}T${startTime}`);
         const end = new Date(`${date}T${endTime}`);
-
         if (end <= start) {
             alert("End time must be after start time");
             return;
         }
-
         const duration = end.getTime() - start.getTime();
 
         try {
@@ -159,10 +189,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
                 endTime: Timestamp.fromDate(end),
                 status: 'manual'
             });
-
-            // Update Aggregates
             await updateStatsInDb(selectedFounder, duration, start);
-
         } catch (err) {
             console.error("Error adding manual entry:", err);
         }
@@ -171,22 +198,17 @@ export const Dashboard = ({ user, forcedFounder }) => {
     const handleDelete = useCallback(async (id) => {
         if (!window.confirm('Are you sure you want to delete this entry?')) return;
         try {
-            // Fetch doc first to get duration for stats correction
             const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, id);
             const docSnap = await getDoc(docRef);
-
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 if (data.endTime && data.startTime) {
                     const start = data.startTime.toDate ? data.startTime.toDate() : new Date(data.startTime);
                     const end = data.endTime.toDate ? data.endTime.toDate() : new Date(data.endTime);
                     const duration = end.getTime() - start.getTime();
-
-                    // Decrement stats
                     await updateStatsInDb(data.founder, -duration, start);
                 }
             }
-
             await deleteDoc(docRef);
         } catch (err) {
             console.error("Error deleting:", err);
@@ -195,15 +217,18 @@ export const Dashboard = ({ user, forcedFounder }) => {
 
 
     // --- Personal Stats Calculation ---
-    // If we are in Personal Mode (forcedFounder), we must transform the global stats
-    // to show only THIS founder's data in the StatsWidget.
     const effectiveStats = (forcedFounder && stats.founderStats && stats.founderStats[forcedFounder])
         ? {
             monthTotal: stats.founderStats[forcedFounder].month || 0,
             yearTotal: stats.founderStats[forcedFounder].year || 0,
-            activeCount: activeEntry ? 1 : 0, // In personal mode, active count is binary (Am I active?)
-            // Preserve other structures for safety
-            founderStats: stats.founderStats,
+            activeCount: activeEntry ? 1 : 0,
+            founderStats: stats.founderStats, // Still pass global? Or filtered?
+            // Meeting Widget needs global to calculate totals?
+            // Actually Meeting Widget will calculate based on ITS input (foundersList).
+            // But StatsWidget uses founderStats to show list.
+            // If Personal, I should probably hide other founders in StatsWidget?
+            // I'll filter founderStats to ONLY contain me.
+            founderStats: { [forcedFounder]: stats.founderStats[forcedFounder] },
             meetingStats: stats.meetingStats
         }
         : stats;
@@ -218,12 +243,13 @@ export const Dashboard = ({ user, forcedFounder }) => {
 
             <TopBar
                 selectedFounder={selectedFounder}
-                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder} // Disable selection if forced
+                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder}
                 title={forcedFounder ? `Welcome, ${forcedFounder.split(' ')[0]}` : "Admin Dashboard"}
+                foundersList={foundersList} // Pass dynamic list to TopBar (need to update TopBar to use it)
             />
 
             <div className="dashboard-grid">
-                <StatsWidget stats={effectiveStats} loading={statsLoading} />
+                <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} />
 
                 <TimerWidget
                     activeEntry={activeEntry}
@@ -233,7 +259,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
                     onManualSubmit={handleManualSubmit}
                 />
 
-                <MeetingAttendanceWidget />
+                <MeetingAttendanceWidget foundersList={foundersList} />
 
                 <HistoryWidget
                     entries={recentEntries}

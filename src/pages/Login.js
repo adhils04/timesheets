@@ -1,19 +1,11 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { COUNTRY_CODES } from '../constants';
+import { useNavigate } from 'react-router-dom';
 
-export const Login = ({ onLogin, onSignup }) => {
-    const [isLogin, setIsLogin] = useState(true);
-
-    // Login State
+export const Login = ({ onLogin }) => {
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-
-    // Signup Extra State
-    const [fullName, setFullName] = useState('');
-    const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0].code);
-    const [phoneNumber, setPhoneNumber] = useState('');
-
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -22,74 +14,27 @@ export const Login = ({ onLogin, onSignup }) => {
         setLoading(true);
         setError('');
         try {
-            if (isLogin) {
-                await onLogin(email, password);
-            } else {
-                const fullPhoneNumber = `${countryCode} ${phoneNumber}`;
-                await onSignup(email, password, fullName, fullPhoneNumber);
-            }
+            await onLogin(email, password);
         } catch (err) {
-            setError('Authentication failed');
+            setError('Invalid credentials');
             setLoading(false);
         }
     };
 
     return (
         <div className="login-container">
-            <div className="login-card" style={!isLogin ? { maxWidth: '480px' } : {}}>
+            <div className="login-card">
                 <div className="flex justify-center mb-6" style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
                     <div className="logo-icon">
                         <Lock size={32} />
                     </div>
                 </div>
-                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>
-                    {isLogin ? 'FounderTrack Login' : 'Create Account'}
-                </h2>
+                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>EasyEscape Login</h2>
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                    {isLogin ? 'Internal Access Only' : 'Join the team'}
+                    Access your dashboard
                 </p>
 
                 <form onSubmit={handleSubmit}>
-                    {!isLogin && (
-                        <div className="input-group">
-                            <label className="input-label">Full Name</label>
-                            <input
-                                type="text"
-                                required
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                className="custom-input"
-                                placeholder="e.g. John Doe"
-                            />
-                        </div>
-                    )}
-
-                    {!isLogin && (
-                        <div className="input-group">
-                            <label className="input-label">Contact Number</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <select
-                                    value={countryCode}
-                                    onChange={(e) => setCountryCode(e.target.value)}
-                                    className="custom-input"
-                                    style={{ width: '120px' }}
-                                >
-                                    {COUNTRY_CODES.map((c, i) => (
-                                        <option key={i} value={c.code}>{c.flag} {c.code}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="tel"
-                                    required
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    className="custom-input"
-                                    placeholder="PHONE"
-                                />
-                            </div>
-                        </div>
-                    )}
-
                     <div className="input-group">
                         <label className="input-label">Email</label>
                         <input
@@ -98,7 +43,7 @@ export const Login = ({ onLogin, onSignup }) => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="custom-input"
-                            placeholder="founder@company.com"
+                            placeholder="you@example.com"
                         />
                     </div>
                     <div className="input-group">
@@ -125,19 +70,16 @@ export const Login = ({ onLogin, onSignup }) => {
                         className="action-btn btn-primary"
                         style={{ width: '100%', justifyContent: 'center' }}
                     >
-                        {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
+                        {loading ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
 
                 <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
                     <button
-                        onClick={() => {
-                            setIsLogin(!isLogin);
-                            setError('');
-                        }}
+                        onClick={() => navigate('/signup')}
                         style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 500 }}
                     >
-                        {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                        New here? Create Account
                     </button>
                 </div>
             </div>
