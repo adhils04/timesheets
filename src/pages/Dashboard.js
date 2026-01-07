@@ -30,7 +30,7 @@ export const Dashboard = ({ user }) => {
 
     // Use specialized hooks
     const { activeEntry, loading: activeLoading } = useActiveEntry(user, selectedFounder);
-    const { entries: recentEntries, loading: recentLoading } = useRecentEntries(user, 10);
+    const { entries: recentEntries, loading: recentLoading } = useRecentEntries(user, 5);
     const { stats, loading: statsLoading } = useStats(user);
 
 

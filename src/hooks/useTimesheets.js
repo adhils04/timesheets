@@ -25,6 +25,11 @@ export const useActiveEntry = (user, selectedFounder) => {
             return;
         }
 
+        // Safety timeout - if Firestore hangs, stop loading after 3s
+        const timeoutId = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
+
         const q = query(
             getDataCollection(),
             where('founder', '==', selectedFounder),
@@ -34,6 +39,7 @@ export const useActiveEntry = (user, selectedFounder) => {
 
         // Use onSnapshot for real-time timer updates (this is a small query)
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            clearTimeout(timeoutId); // Data received, clear timeout
             let data = null;
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
@@ -50,7 +56,10 @@ export const useActiveEntry = (user, selectedFounder) => {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        };
     }, [user, selectedFounder]);
 
     return { activeEntry, loading };
@@ -68,6 +77,11 @@ export const useRecentEntries = (user, limitCount = 10) => {
             return;
         }
 
+        // Safety timeout
+        const timeoutId = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
+
         const q = query(
             getDataCollection(),
             orderBy('startTime', 'desc'),
@@ -75,6 +89,7 @@ export const useRecentEntries = (user, limitCount = 10) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            clearTimeout(timeoutId);
             const loaded = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data({ serverTimestamps: 'estimate' }),
@@ -89,7 +104,10 @@ export const useRecentEntries = (user, limitCount = 10) => {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        };
     }, [user, limitCount]);
 
     return { entries, loading };
@@ -111,10 +129,15 @@ export const useStats = (user) => {
             return;
         }
 
+        const timeoutId = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
+
         // Reference to the single aggregate stats document
         const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
 
         const unsubscribe = onSnapshot(statsRef, (docSnap) => {
+            clearTimeout(timeoutId);
             if (docSnap.exists()) {
                 // DATA EXISTS: Use the pre-calculated DB values (INSTANT)
                 const data = docSnap.data();
@@ -135,7 +158,10 @@ export const useStats = (user) => {
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        };
     }, [user]);
 
     return { stats, loading };

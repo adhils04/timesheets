@@ -33,6 +33,14 @@ export const MeetingAttendanceWidget = React.memo(() => {
         setLoading(true);
         setSaveSuccess(false);
 
+        // Safety timeout
+        const timeoutId = setTimeout(() => {
+            if (!cancelled) {
+                setLoading(false);
+                // Can optionally show a toast here "Network slow..."
+            }
+        }, 3000);
+
         const fetchAttendance = async () => {
             try {
                 const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate);
@@ -56,12 +64,18 @@ export const MeetingAttendanceWidget = React.memo(() => {
             } catch (error) {
                 console.error("Error fetching attendance:", error);
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) {
+                    clearTimeout(timeoutId);
+                    setLoading(false);
+                }
             }
         };
 
         fetchAttendance();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
     }, [selectedDate]);
 
     // --- 2. Real-time Aggregated Stats (Read Only) ---
