@@ -86,7 +86,6 @@ const AppContent = () => {
       navigate('/dashboard');
     } else {
       // Admin or fallback? User said "Admin page with tail /admintrack"
-      // I'll assume generic login goes to /admintrack if allowed?
       navigate('/admintrack');
     }
   };
@@ -145,8 +144,8 @@ const AppContent = () => {
         <Route
           path="/login"
           element={
-            // user ? (user.email.includes('founder') ? <Navigate to="/dashboard" /> : <Navigate to="/admintrack" />) : 
-            <Login onLogin={handleLogin} onSignup={handleSignup} />
+            user ? (user.email.toLowerCase().includes('founder') ? <Navigate to="/dashboard" replace /> : <Navigate to="/admintrack" replace />) :
+              <Login onLogin={handleLogin} onSignup={handleSignup} />
           }
         />
 
