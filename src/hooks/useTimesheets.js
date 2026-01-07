@@ -6,7 +6,8 @@ import {
     onSnapshot,
     orderBy,
     limit,
-    doc
+    doc,
+    getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { APP_ID, COLLECTION_NAME } from '../constants';
@@ -65,7 +66,7 @@ export const useActiveEntry = (user, selectedFounder) => {
     return { activeEntry, loading };
 };
 
-// Hook for Recent History - Standard Firestore Listener (No browser cache)
+// Hook for Recent History - Uses getDocs for a one-time fetch
 export const useRecentEntries = (user, limitCount = 10) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -77,37 +78,30 @@ export const useRecentEntries = (user, limitCount = 10) => {
             return;
         }
 
-        // Safety timeout
-        const timeoutId = setTimeout(() => {
-            setLoading(false);
-        }, 3000);
-
-        const q = query(
-            getDataCollection(),
-            orderBy('startTime', 'desc'),
-            limit(limitCount)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            clearTimeout(timeoutId);
-            const loaded = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data({ serverTimestamps: 'estimate' }),
-                startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
-                endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
-            }));
-
-            setEntries(loaded);
-            setLoading(false);
-        }, (err) => {
-            console.error("Recent entries error:", err);
-            setLoading(false);
-        });
-
-        return () => {
-            unsubscribe();
-            clearTimeout(timeoutId);
+        const fetchEntries = async () => {
+            setLoading(true);
+            try {
+                const q = query(
+                    getDataCollection(),
+                    orderBy('startTime', 'desc'),
+                    limit(limitCount)
+                );
+                const snapshot = await getDocs(q);
+                const loaded = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data({ serverTimestamps: 'estimate' }),
+                    startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
+                    endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
+                }));
+                setEntries(loaded);
+            } catch (err) {
+                console.error("Recent entries error:", err);
+            } finally {
+                setLoading(false);
+            }
         };
+
+        fetchEntries();
     }, [user, limitCount]);
 
     return { entries, loading };
@@ -167,7 +161,7 @@ export const useStats = (user) => {
     return { stats, loading };
 };
 
-// Progressive loading for Timesheets page (No cache)
+// Progressive loading for Timesheets page (one-time fetch)
 export const useTimesheets = (user) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -179,31 +173,32 @@ export const useTimesheets = (user) => {
             return;
         }
 
-        // Single real-time query for recent entries
-        const q = query(
-            getDataCollection(),
-            orderBy('startTime', 'desc'),
-            limit(100)
-        );
+        const fetchEntries = async () => {
+            setLoading(true);
+            try {
+                // Single query for recent entries
+                const q = query(
+                    getDataCollection(),
+                    orderBy('startTime', 'desc'),
+                    limit(100)
+                );
+                const snapshot = await getDocs(q);
+                const loadedEntries = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data({ serverTimestamps: 'estimate' }),
+                    startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
+                    endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
+                }));
+                setEntries(loadedEntries);
+            } catch (err) {
+                console.error("Timesheets snapshot error:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const loadedEntries = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data({ serverTimestamps: 'estimate' }),
-                startTime: doc.data({ serverTimestamps: 'estimate' }).startTime?.toDate(),
-                endTime: doc.data({ serverTimestamps: 'estimate' }).endTime?.toDate(),
-            }));
-
-            setEntries(loadedEntries);
-            setLoading(false);
-        }, (err) => {
-            console.error("Timesheets snapshot error:", err);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        fetchEntries();
     }, [user]);
 
     return { entries, loading };
 }
-

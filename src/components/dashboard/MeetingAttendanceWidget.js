@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, getDoc, setDoc, onSnapshot, increment } from 'firebase/firestore';
+import {
+    doc,
+    getDoc,
+    setDoc,
+    increment,
+    onSnapshot,
+    getDocs
+} from 'firebase/firestore';
 import { db } from '../../firebase';
 import { FOUNDERS, APP_ID } from '../../constants';
 
@@ -24,22 +31,11 @@ export const MeetingAttendanceWidget = React.memo(() => {
         totalMeetings: 0
     });
 
-    // Track loaded dates to know which are new vs existing
-    const loadedDatesRef = useRef(new Set());
-
-    // --- 1. Fetch Attendance for Selected Date ---
+    // --- 1. Fetch Attendance for Selected Date (One-time fetch) ---
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setSaveSuccess(false);
-
-        // Safety timeout
-        const timeoutId = setTimeout(() => {
-            if (!cancelled) {
-                setLoading(false);
-                // Can optionally show a toast here "Network slow..."
-            }
-        }, 3000);
 
         const fetchAttendance = async () => {
             try {
@@ -54,7 +50,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     setAttendance(fullData);
                     setOriginalAttendance(fullData);
                     setIsNewEntry(false);
-                    loadedDatesRef.current.add(selectedDate);
                 } else {
                     const defaults = getDefaultAttendance();
                     setAttendance(defaults);
@@ -65,7 +60,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 console.error("Error fetching attendance:", error);
             } finally {
                 if (!cancelled) {
-                    clearTimeout(timeoutId);
                     setLoading(false);
                 }
             }
@@ -74,7 +68,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
         fetchAttendance();
         return () => {
             cancelled = true;
-            clearTimeout(timeoutId);
         };
     }, [selectedDate]);
 
@@ -154,25 +147,17 @@ export const MeetingAttendanceWidget = React.memo(() => {
             });
 
             // Perform both updates in parallel with timeout
-            const updatePromise = Promise.all([
+            await Promise.all([
                 setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate), {
                     date: selectedDate,
                     attendance: attendance,
                     updatedAt: new Date().toISOString()
                 }, { merge: true }),
-                // Only update stats if there are changes
                 Object.keys(updates).length > 0 ? setDoc(statsRef, updates, { merge: true }) : Promise.resolve()
-            ]);
-
-            // Timeout race
-            await Promise.race([
-                updatePromise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Network timeout")), 5000))
             ]);
 
             setOriginalAttendance({ ...attendance });
             setIsNewEntry(false);
-            loadedDatesRef.current.add(selectedDate);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
 
