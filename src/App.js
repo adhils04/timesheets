@@ -47,7 +47,6 @@ const getFounderFromEmail = (email) => {
 };
 
 // --- Main Inner Component (w/ Router context) ---
-// We split AppContent so we can use useNavigate inside it
 const AppContent = () => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -59,7 +58,6 @@ const AppContent = () => {
       // eslint-disable-next-line no-undef
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         try {
-          // eslint-disable-next-line no-undef
           await signInWithCustomToken(auth, __initial_auth_token);
         } catch (e) {
           console.error("Preview auth failed", e);
@@ -79,19 +77,11 @@ const AppContent = () => {
   // --- Auth Actions ---
   const handleLogin = async (email, password) => {
     await signInWithEmailAndPassword(auth, email, password);
-
-    // Custom Redirect Logic
-    if (email.toLowerCase().includes('founder')) {
-      // Redirect to personal dashboard
-      navigate('/dashboard');
-    } else {
-      // Admin or fallback? User said "Admin page with tail /admintrack"
-      navigate('/admintrack');
-    }
+    // Standard routing: Dashboard for everyone unless manually navigating to Admin
+    navigate('/dashboard');
   };
 
   const handleSignup = async (email, password, fullName, phoneNumber) => {
-    // Signup Logic (Redirects handled by useEffect or manual)
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = userCredential.user;
 
@@ -103,16 +93,12 @@ const AppContent = () => {
       email,
       fullName,
       phoneNumber,
-      role: 'founder',
+      role: 'founder', // Default role
       joinedAt: serverTimestamp()
     });
 
-    // Redirect after signup?
-    if (email.toLowerCase().includes('founder')) {
-      navigate('/dashboard');
-    } else {
-      navigate('/admintrack');
-    }
+    // Send everyone to their personal dashboard
+    navigate('/dashboard');
   };
 
   const handleLogout = async () => {
@@ -132,7 +118,9 @@ const AppContent = () => {
     return children;
   };
 
-  const currentFounderName = getFounderFromEmail(user?.email);
+  // Determine the name to enforce for Personal Dashboard
+  // Prioritize displayName (from signup), then email match, then email itself fallback
+  const currentFounderName = user?.displayName || getFounderFromEmail(user?.email) || user?.email?.split('@')[0];
 
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -144,12 +132,12 @@ const AppContent = () => {
         <Route
           path="/login"
           element={
-            user ? (user.email.toLowerCase().includes('founder') ? <Navigate to="/dashboard" replace /> : <Navigate to="/admintrack" replace />) :
+            user ? <Navigate to="/dashboard" replace /> :
               <Login onLogin={handleLogin} onSignup={handleSignup} />
           }
         />
 
-        {/* Admin Dashboard (All Founders) */}
+        {/* Admin Dashboard (All Founders) - Explicitly accessible */}
         <Route
           path="/admintrack"
           element={
@@ -167,7 +155,8 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <AppLayout user={user} onLogout={handleLogout}>
-                {/* Enforce filtering by passing forcedFounder */}
+                {/* Enforce filtering by passing forcedFounder key */}
+                {/* Note: If currentFounderName is null, it acts as Admin dashboard. */}
                 <Dashboard user={user} forcedFounder={currentFounderName} />
               </AppLayout>
             </ProtectedRoute>

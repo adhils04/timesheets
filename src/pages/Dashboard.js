@@ -194,6 +194,20 @@ export const Dashboard = ({ user, forcedFounder }) => {
     }, []);
 
 
+    // --- Personal Stats Calculation ---
+    // If we are in Personal Mode (forcedFounder), we must transform the global stats
+    // to show only THIS founder's data in the StatsWidget.
+    const effectiveStats = (forcedFounder && stats.founderStats && stats.founderStats[forcedFounder])
+        ? {
+            monthTotal: stats.founderStats[forcedFounder].month || 0,
+            yearTotal: stats.founderStats[forcedFounder].year || 0,
+            activeCount: activeEntry ? 1 : 0, // In personal mode, active count is binary (Am I active?)
+            // Preserve other structures for safety
+            founderStats: stats.founderStats,
+            meetingStats: stats.meetingStats
+        }
+        : stats;
+
     return (
         <>
             <datalist id="task-suggestions">
@@ -209,7 +223,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
             />
 
             <div className="dashboard-grid">
-                <StatsWidget stats={stats} loading={statsLoading} />
+                <StatsWidget stats={effectiveStats} loading={statsLoading} />
 
                 <TimerWidget
                     activeEntry={activeEntry}
