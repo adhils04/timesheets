@@ -193,8 +193,38 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     </h3>
 
                     {loading ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Loading attendance...
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {FOUNDERS.map(founder => (
+                                <div
+                                    key={founder}
+                                    style={{
+                                        padding: '0.75rem',
+                                        background: 'white',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '1rem'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '1.2rem',
+                                        height: '1.2rem',
+                                        background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'shimmer 1.5s infinite',
+                                        borderRadius: '4px'
+                                    }} />
+                                    <div style={{
+                                        width: '80px',
+                                        height: '20px',
+                                        background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'shimmer 1.5s infinite',
+                                        borderRadius: '4px'
+                                    }} />
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
