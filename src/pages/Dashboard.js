@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     collection,
     addDoc,
@@ -25,8 +25,16 @@ import {
     APP_ID
 } from '../constants';
 
-export const Dashboard = ({ user }) => {
-    const [selectedFounder, setSelectedFounder] = useState(FOUNDERS[0]);
+// forcedFounder prop enables "Personal Dashboard" mode
+export const Dashboard = ({ user, forcedFounder }) => {
+    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
+
+    // Ensure state syncs if prop changes
+    useEffect(() => {
+        if (forcedFounder) {
+            setSelectedFounder(forcedFounder);
+        }
+    }, [forcedFounder]);
 
     // Use specialized hooks
     const { activeEntry, loading: activeLoading } = useActiveEntry(user, selectedFounder);
@@ -55,13 +63,23 @@ export const Dashboard = ({ user }) => {
             if (isThisMonth) {
                 updates.monthTotal = increment(duration);
                 updates[`founderStats.${founder}.month`] = increment(duration);
-            } else if (isThisYear) {
-                // If entry is this year but not this month, we still updated year/founder year above
             }
 
             await setDoc(statsRef, updates, { merge: true });
         } catch (e) {
             console.error("Failed to update stats:", e);
+        }
+    };
+
+    // --- Helper for Active Count ---
+    const updateActiveCount = async (change) => {
+        try {
+            const statsRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'stats', 'aggregate');
+            await setDoc(statsRef, {
+                activeCount: increment(change)
+            }, { merge: true });
+        } catch (e) {
+            console.error("Failed to update active count:", e);
         }
     };
 
@@ -77,6 +95,10 @@ export const Dashboard = ({ user }) => {
                 endTime: null,
                 status: 'active'
             });
+
+            // Increment Active Count
+            await updateActiveCount(1);
+
         } catch (err) {
             console.error("Error clocking in:", err);
             alert("Failed to clock in. Check connection or database status.");
@@ -97,8 +119,11 @@ export const Dashboard = ({ user }) => {
                 status: 'completed'
             });
 
-            // Update Aggregates
+            // Update Aggregates (Duration)
             await updateStatsInDb(activeEntry.founder, duration, endTime);
+
+            // Decrement Active Count
+            await updateActiveCount(-1);
 
         } catch (err) {
             console.error("Error clocking out:", err);
@@ -151,6 +176,9 @@ export const Dashboard = ({ user }) => {
 
                     // Decrement stats
                     await updateStatsInDb(data.founder, -duration, start);
+
+                    // Note: If deleting an ACTIVE entry (which shouldn't happen here usually), fix activeCount.
+                    // But history widget usually shows completed.
                 }
             }
 
@@ -169,10 +197,12 @@ export const Dashboard = ({ user }) => {
                 ))}
             </datalist>
 
+            {/* If forcedFounder is set, TopBar should NOT show selector, or handle it? */}
+            {/* TopBar usually shows selector. We can pass setSelectedFounder only if not forced? */}
             <TopBar
                 selectedFounder={selectedFounder}
-                setSelectedFounder={setSelectedFounder}
-                title="Timesheet Dashboard"
+                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder} // Disable selection if forced
+                title={forcedFounder ? `Welcome, ${forcedFounder.split(' ')[0]}` : "Admin Dashboard"}
             />
 
             <div className="dashboard-grid">

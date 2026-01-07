@@ -19,6 +19,8 @@ export const Sidebar = ({ user, onLogout }) => {
         return email.split('@')[0];
     }
 
+    const dashboardRoute = user?.email?.toLowerCase().includes('founder') ? '/dashboard' : '/admintrack';
+
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
@@ -29,7 +31,7 @@ export const Sidebar = ({ user, onLogout }) => {
             </div>
 
             <nav className="nav-menu">
-                <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to={dashboardRoute} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                     <PieChart size={20} />
                     <span>Overview</span>
                 </NavLink>

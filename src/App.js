@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -10,10 +10,11 @@ import {
 } from 'firebase/auth';
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import { APP_ID } from './constants';
+import { APP_ID, FOUNDERS } from './constants';
 import { AppLayout } from './layouts/AppLayout';
+import { LandingPage } from './pages/LandingPage';
 
-// Lazy load pages for code splitting (faster initial load)
+// Lazy load pages
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const Timesheets = lazy(() => import('./pages/Timesheets').then(module => ({ default: module.Timesheets })));
@@ -34,10 +35,23 @@ const LoadingFallback = () => (
   </div>
 );
 
-// --- Main Component ---
-export default function App() {
+// Helper to determine founder name from email
+const getFounderFromEmail = (email) => {
+  if (!email) return null;
+  const lowerEmail = email.toLowerCase();
+  // Try to match first name
+  return FOUNDERS.find(f => {
+    const firstName = f.split(' ')[0].toLowerCase();
+    return lowerEmail.includes(firstName);
+  });
+};
+
+// --- Main Inner Component (w/ Router context) ---
+// We split AppContent so we can use useNavigate inside it
+const AppContent = () => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const navigate = useNavigate();
 
   // --- Auth Initialization ---
   useEffect(() => {
@@ -65,9 +79,20 @@ export default function App() {
   // --- Auth Actions ---
   const handleLogin = async (email, password) => {
     await signInWithEmailAndPassword(auth, email, password);
+
+    // Custom Redirect Logic
+    if (email.toLowerCase().includes('founder')) {
+      // Redirect to personal dashboard
+      navigate('/dashboard');
+    } else {
+      // Admin or fallback? User said "Admin page with tail /admintrack"
+      // I'll assume generic login goes to /admintrack if allowed?
+      navigate('/admintrack');
+    }
   };
 
   const handleSignup = async (email, password, fullName, phoneNumber) => {
+    // Signup Logic (Redirects handled by useEffect or manual)
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = userCredential.user;
 
@@ -82,10 +107,18 @@ export default function App() {
       role: 'founder',
       joinedAt: serverTimestamp()
     });
+
+    // Redirect after signup?
+    if (email.toLowerCase().includes('founder')) {
+      navigate('/dashboard');
+    } else {
+      navigate('/admintrack');
+    }
   };
 
   const handleLogout = async () => {
     await signOut(auth);
+    navigate('/');
   };
 
   if (authLoading) {
@@ -100,55 +133,82 @@ export default function App() {
     return children;
   };
 
+  const currentFounderName = getFounderFromEmail(user?.email);
+
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Login Page */}
+        <Route
+          path="/login"
+          element={
+            // user ? (user.email.includes('founder') ? <Navigate to="/dashboard" /> : <Navigate to="/admintrack" />) : 
+            <Login onLogin={handleLogin} onSignup={handleSignup} />
+          }
+        />
+
+        {/* Admin Dashboard (All Founders) */}
+        <Route
+          path="/admintrack"
+          element={
+            <ProtectedRoute>
+              <AppLayout user={user} onLogout={handleLogout}>
+                <Dashboard user={user} />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Personal Dashboard (Single Founder) */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <AppLayout user={user} onLogout={handleLogout}>
+                {/* Enforce filtering by passing forcedFounder */}
+                <Dashboard user={user} forcedFounder={currentFounderName} />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/timesheets"
+          element={
+            <ProtectedRoute>
+              <AppLayout user={user} onLogout={handleLogout}>
+                <Timesheets user={user} />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout user={user} onLogout={handleLogout}>
+                <Profile user={user} />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  );
+};
+
+// Main Export
+export default function App() {
   return (
     <Router>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} onSignup={handleSignup} />
-            }
-          />
-
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <AppLayout user={user} onLogout={handleLogout}>
-                  <Dashboard user={user} />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/timesheets"
-            element={
-              <ProtectedRoute>
-                <AppLayout user={user} onLogout={handleLogout}>
-                  <Timesheets user={user} />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <AppLayout user={user} onLogout={handleLogout}>
-                  <Profile user={user} />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Placeholders for other routes */}
-          <Route path="/analytics" element={<Navigate to="/" replace />} />
-          <Route path="/team" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </Router >
+      <AppContent />
+    </Router>
   );
 }

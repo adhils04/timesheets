@@ -4,8 +4,7 @@ import {
     getDoc,
     setDoc,
     increment,
-    onSnapshot,
-    getDocs
+    onSnapshot
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { FOUNDERS, APP_ID } from '../../constants';
@@ -31,13 +30,12 @@ export const MeetingAttendanceWidget = React.memo(() => {
         totalMeetings: 0
     });
 
-    // --- 1. Fetch Attendance for Selected Date (One-time fetch) ---
+    // --- 1. Fetch Attendance for Selected Date ---
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setSaveSuccess(false);
 
-<<<<<<< HEAD
         // Safety timeout
         const timeoutId = setTimeout(() => {
             if (!cancelled) {
@@ -45,8 +43,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
             }
         }, 3000);
 
-=======
->>>>>>> 78583c71b42fa74e5cf202fe6dc397f17b187bee
         const fetchAttendance = async () => {
             try {
                 const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate);
@@ -70,6 +66,7 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 console.error("Error fetching attendance:", error);
             } finally {
                 if (!cancelled) {
+                    clearTimeout(timeoutId);
                     setLoading(false);
                 }
             }
@@ -78,6 +75,7 @@ export const MeetingAttendanceWidget = React.memo(() => {
         fetchAttendance();
         return () => {
             cancelled = true;
+            clearTimeout(timeoutId);
         };
     }, [selectedDate]);
 
@@ -156,13 +154,20 @@ export const MeetingAttendanceWidget = React.memo(() => {
             });
 
             // Perform both updates in parallel with timeout
-            await Promise.all([
+            const updatePromise = Promise.all([
                 setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate), {
                     date: selectedDate,
                     attendance: attendance,
                     updatedAt: new Date().toISOString()
                 }, { merge: true }),
+                // Only update stats if there are changes
                 Object.keys(updates).length > 0 ? setDoc(statsRef, updates, { merge: true }) : Promise.resolve()
+            ]);
+
+            // Timeout race
+            await Promise.race([
+                updatePromise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Network timeout")), 5000))
             ]);
 
             setOriginalAttendance({ ...attendance });
