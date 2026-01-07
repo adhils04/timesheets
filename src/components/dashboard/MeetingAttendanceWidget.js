@@ -37,7 +37,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
         const timeoutId = setTimeout(() => {
             if (!cancelled) {
                 setLoading(false);
-                // Can optionally show a toast here "Network slow..."
             }
         }, 3000);
 
@@ -91,7 +90,6 @@ export const MeetingAttendanceWidget = React.memo(() => {
                     setStats(data.meetingStats);
                 } else {
                     // No meeting stats yet - use empty defaults
-                    console.warn("Meeting stats don't exist yet. They will be created when you save attendance.");
                     setStats({
                         founderStats: FOUNDERS.reduce((acc, f) => ({ ...acc, [f]: 0 }), {}),
                         yearlyTotal: 0,

@@ -53,6 +53,10 @@ export const useActiveEntry = (user, selectedFounder) => {
             setLoading(false);
         }, (err) => {
             console.error("Active entry error:", err);
+            // Log missing index specifically to help user
+            if (err.code === 'failed-precondition') {
+                console.error("🔥 MISSING INDEX: Open this link to fix ->", err.message);
+            }
             setLoading(false);
         });
 
@@ -101,6 +105,9 @@ export const useRecentEntries = (user, limitCount = 10) => {
             setLoading(false);
         }, (err) => {
             console.error("Recent entries error:", err);
+            if (err.code === 'failed-precondition') {
+                console.warn("🔥 MISSING INDEX for Recent Entries. Check console for link.");
+            }
             setLoading(false);
         });
 
@@ -206,4 +213,3 @@ export const useTimesheets = (user) => {
 
     return { entries, loading };
 }
-

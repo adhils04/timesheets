@@ -79,6 +79,7 @@ export const Dashboard = ({ user }) => {
             });
         } catch (err) {
             console.error("Error clocking in:", err);
+            alert("Failed to clock in. Check connection or database status.");
         }
     }, [user, selectedFounder]);
 
