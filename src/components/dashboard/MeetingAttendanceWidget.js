@@ -153,8 +153,8 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 }
             });
 
-            // Perform both updates in parallel
-            await Promise.all([
+            // Perform both updates in parallel with timeout
+            const updatePromise = Promise.all([
                 setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'meeting_attendance', selectedDate), {
                     date: selectedDate,
                     attendance: attendance,
@@ -162,6 +162,12 @@ export const MeetingAttendanceWidget = React.memo(() => {
                 }, { merge: true }),
                 // Only update stats if there are changes
                 Object.keys(updates).length > 0 ? setDoc(statsRef, updates, { merge: true }) : Promise.resolve()
+            ]);
+
+            // Timeout race
+            await Promise.race([
+                updatePromise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Network timeout")), 5000))
             ]);
 
             setOriginalAttendance({ ...attendance });

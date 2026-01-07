@@ -20,8 +20,13 @@ const firebaseConfig = {
     appId: process.env.FIREBASE_APP_ID || "1:123456789:web:abcdef"
 };
 
-const APP_ID = 'timesheets-app';
-const FOUNDERS = ['Adhil', 'Akhil', 'Akshay'];
+const APP_ID = 'founder-timesheet-app';
+const FOUNDERS = [
+    'Naeem Theyyathumkadavath',
+    'Saeed Abdu Rahiman',
+    'Shafeeque Kokkuth',
+    'Abdu Subahan'
+];
 
 async function initializeDatabase() {
     console.log('🚀 Initializing Firestore database...\n');

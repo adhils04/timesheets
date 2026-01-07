@@ -18,9 +18,14 @@ const firebaseConfig = {
     appId: process.env.FIREBASE_APP_ID
 };
 
-const APP_ID = 'timesheets-app';
+const APP_ID = 'founder-timesheet-app';
 const COLLECTION_NAME = 'timesheets';
-const FOUNDERS = ['Adhil', 'Akhil', 'Akshay'];
+const FOUNDERS = [
+    'Naeem Theyyathumkadavath',
+    'Saeed Abdu Rahiman',
+    'Shafeeque Kokkuth',
+    'Abdu Subahan'
+];
 
 async function migrateStats() {
     console.log('🚀 Starting stats migration...\n');
