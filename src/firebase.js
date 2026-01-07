@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCjov15N246JwygMGcokruydxQ460uWZ2M",
@@ -15,9 +15,6 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Use modern persistence API (replaces deprecated enableMultiTabIndexedDbPersistence)
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+// Use standard Firestore initialization (Memory cache only)
+// This ensures real-time data fetching without offline persistence overhead
+export const db = getFirestore(app);
