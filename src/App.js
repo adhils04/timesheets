@@ -140,7 +140,7 @@ const AppContent = () => {
 
         {/* Admin Dashboard (All Founders) - Explicitly accessible */}
         <Route
-          path="/admintrack"
+          path="/admintracker"
           element={
             <ProtectedRoute>
               <AppLayout user={user} onLogout={handleLogout}>
