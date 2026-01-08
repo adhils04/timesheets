@@ -142,6 +142,7 @@ body {
 
 .user-profile-info {
     transition: opacity 0.2s;
+    cursor: pointer;
 }
 
 .user-profile-info:hover {
