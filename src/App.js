@@ -184,9 +184,18 @@ const AppContent = () => {
         {/* 2. Admin Dashboard (Protected by Secret Code) */}
         <Route path="/admintracker/dashboard" element={
           <AdminRoute>
-            <AppLayout user={user} onLogout={handleLogout}>
+            <AppLayout user={user} onLogout={handleLogout} isAdmin={true}>
               {/* Admin Mode (forcedFounder=undefined) */}
               <Dashboard user={user} isReadOnly={!user} />
+            </AppLayout>
+          </AdminRoute>
+        } />
+
+        {/* 3. Admin Timesheets (Protected by Secret Code) */}
+        <Route path="/admintracker/timesheets" element={
+          <AdminRoute>
+            <AppLayout user={user} onLogout={handleLogout} isAdmin={true}>
+              <Timesheets user={user} isAdmin={true} />
             </AppLayout>
           </AdminRoute>
         } />

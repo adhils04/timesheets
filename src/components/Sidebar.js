@@ -8,7 +8,7 @@ import {
     History as HistoryIcon
 } from 'lucide-react';
 
-export const Sidebar = ({ user, onLogout }) => {
+export const Sidebar = ({ user, onLogout, isAdmin }) => {
     const navigate = useNavigate();
 
     // Helpers
@@ -25,19 +25,23 @@ export const Sidebar = ({ user, onLogout }) => {
             </div>
 
             <nav className="nav-menu">
-                {/* Dashboard is accessible to everyone */}
-                <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                {/* Dashboard */}
+                <NavLink to={isAdmin ? "/admintracker/dashboard" : "/dashboard"} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                     <PieChart size={20} />
-                    <span>My Dashboard</span>
+                    <span>{isAdmin ? "Admin Dashboard" : "My Dashboard"}</span>
                 </NavLink>
 
-                <NavLink to="/timesheets" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to={isAdmin ? "/admintracker/timesheets" : "/timesheets"} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                     <HistoryIcon size={20} />
-                    <span>Timesheets</span>
+                    <span>{isAdmin ? "All Timesheets" : "Timesheets"}</span>
                 </NavLink>
 
-                {/* Admin Tracker - Only for Admins */}
-                {user?.role === 'admin' && (
+                {/* Admin Tracker Link - Show if user is admin OR if we are already in admin mode (to keep nav valid?) 
+                    Actually if we are in admin mode, we don't need a link to 'enter' admin mode. 
+                    But maybe to restart?
+                    Use user?.role checking as original.
+                */}
+                {user?.role === 'admin' && !isAdmin && (
                     <NavLink to="/admintracker" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <Shield size={20} />
                         <span>Admin Tracker</span>

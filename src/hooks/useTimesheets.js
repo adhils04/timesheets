@@ -175,12 +175,12 @@ export const useStats = (user) => {
 };
 
 // Progressive loading for Timesheets page (No cache)
-export const useTimesheets = (user) => {
+export const useTimesheets = (user, isPublic = false) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user) {
+        if (!user && !isPublic) {
             setEntries([]);
             setLoading(false);
             return;

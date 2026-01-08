@@ -7,10 +7,16 @@ import { TopBar } from '../components/TopBar';
 import { FOUNDERS, APP_ID, COLLECTION_NAME } from '../constants';
 import { formatDuration, formatDate, getInitials } from '../utils';
 
-export const Timesheets = ({ user, forcedFounder }) => {
-    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
-    const { entries, loading } = useTimesheets(user);
+import { Search } from 'lucide-react';
 
+export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
+    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Fetch data (allow if isAdmin even if no user)
+    const { entries, loading } = useTimesheets(user, isAdmin);
+
+    // ... (stats helpers unchanged) ...
     // Helper for stats updates (duplicated safely here to ensure robustness)
     const updateStatsInDb = async (founder, duration, date) => {
         try {
@@ -69,25 +75,49 @@ export const Timesheets = ({ user, forcedFounder }) => {
 
     if (loading) return <div>Loading...</div>;
 
+    // Filter Logic
+    const filteredEntries = isAdmin
+        ? entries.filter(e => e.founder.toLowerCase().includes(searchQuery.toLowerCase()))
+        : entries.filter(e => e.founder === selectedFounder);
+
     return (
         <>
             <TopBar
                 selectedFounder={selectedFounder}
-                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder}
-                title={forcedFounder ? "My Timesheet History" : "Timesheet History"}
-                foundersList={forcedFounder ? [forcedFounder] : FOUNDERS}
+                setSelectedFounder={forcedFounder || isAdmin ? undefined : setSelectedFounder}
+                title={isAdmin ? "Admin Timesheets" : (forcedFounder ? "My Timesheet History" : "Timesheet History")}
+                foundersList={isAdmin ? [] : (forcedFounder ? [forcedFounder] : FOUNDERS)}
             />
+
+            {/* Admin Search Bar */}
+            {isAdmin && (
+                <div style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+                    <div style={{ position: 'relative', maxWidth: '400px' }}>
+                        <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search by founder name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="custom-input"
+                            style={{ paddingLeft: '2.5rem' }}
+                        />
+                    </div>
+                </div>
+            )}
 
             <div className="card history-section" style={{ marginTop: '2rem' }}>
                 <h3 style={{ fontSize: '1.1rem', margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <HistoryIcon size={20} /> All Entries (Year To Date)
+                    <HistoryIcon size={20} /> {isAdmin ? `All Entries (${filteredEntries.length})` : 'All Entries (Year To Date)'}
                 </h3>
 
-                {entries.length === 0 ? (
-                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No activities recorded yet.</div>
+                {filteredEntries.length === 0 ? (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {isAdmin && searchQuery ? "No matching records found." : "No activities recorded yet."}
+                    </div>
                 ) : (
                     <ul className="history-list">
-                        {entries.filter(e => e.founder === selectedFounder).map((entry) => {
+                        {filteredEntries.map((entry) => {
                             const startTime = entry.startTime;
                             const endTime = entry.endTime;
 
