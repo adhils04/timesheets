@@ -49,11 +49,11 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
                     if (names.length > 0) {
                         setFoundersList(names);
                     } else {
-                        setFoundersList(FALLBACK_FOUNDERS); // Fallback if DB empty/error
+                        setFoundersList([]); // No fallback to ensure accurate representation of DB
                     }
                 } catch (e) {
                     console.error("Error fetching founders:", e);
-                    setFoundersList(FALLBACK_FOUNDERS);
+                    setFoundersList([]);
                 }
             }
         };
@@ -249,7 +249,7 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
 
             <TopBar
                 selectedFounder={selectedFounder}
-                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder}
+                setSelectedFounder={forcedFounder || isReadOnly ? undefined : setSelectedFounder}
                 title={(forcedFounder && typeof forcedFounder === 'string') ? `Welcome, ${forcedFounder.split(' ')[0]}` : "Admin Dashboard"}
                 foundersList={foundersList} // Pass dynamic list to TopBar (need to update TopBar to use it)
             />
