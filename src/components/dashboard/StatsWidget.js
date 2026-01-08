@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Calendar, Briefcase, Activity } from 'lucide-react';
 
-export const StatsWidget = ({ stats, loading, foundersList = [] }) => {
+export const StatsWidget = ({ stats, loading, foundersList = [], showBreakdown = false }) => {
 
     // Format helpers
     const formatDuration = (ms) => {
@@ -19,7 +19,7 @@ export const StatsWidget = ({ stats, loading, foundersList = [] }) => {
                 {[1, 2, 3].map(i => (
                     <div key={i} className="card stat-card shimmer" style={{ height: '160px' }}></div>
                 ))}
-                <div className="card breakdown-card shimmer" style={{ height: '300px' }}></div>
+                {showBreakdown && <div className="card breakdown-card shimmer" style={{ height: '300px' }}></div>}
             </>
         );
     }
@@ -57,42 +57,44 @@ export const StatsWidget = ({ stats, loading, foundersList = [] }) => {
 
 
             {/* Founder Breakdown Section */}
-            <div className="card breakdown-card" style={{ gridColumn: 'span 12', marginTop: '1rem' }}>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#475569' }}>Founder Breakdown</h3>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                                <th style={{ padding: '0.75rem', color: '#64748b' }}>Founder</th>
-                                <th style={{ padding: '0.75rem', color: '#3b82f6' }}>Hours (Month)</th>
-                                <th style={{ padding: '0.75rem', color: '#10b981' }}>Hours (Year)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {foundersList.map(founder => {
-                                const fStats = (stats.founderStats && stats.founderStats[founder]) || {};
-                                const monthMs = fStats.month || 0;
-                                const yearMs = fStats.year || 0;
+            {showBreakdown && (
+                <div className="card breakdown-card" style={{ gridColumn: 'span 12', marginTop: '1rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#475569' }}>Founder Breakdown</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                                    <th style={{ padding: '0.75rem', color: '#64748b' }}>Founder</th>
+                                    <th style={{ padding: '0.75rem', color: '#3b82f6' }}>Hours (Month)</th>
+                                    <th style={{ padding: '0.75rem', color: '#10b981' }}>Hours (Year)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {foundersList.map(founder => {
+                                    const fStats = (stats.founderStats && stats.founderStats[founder]) || {};
+                                    const monthMs = fStats.month || 0;
+                                    const yearMs = fStats.year || 0;
 
-                                return (
-                                    <tr key={founder} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                        <td style={{ padding: '0.75rem', fontWeight: 500 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#64748b' }}>
-                                                    {getInitials(founder)}
+                                    return (
+                                        <tr key={founder} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '0.75rem', fontWeight: 500 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#64748b' }}>
+                                                        {getInitials(founder)}
+                                                    </div>
+                                                    {founder}
                                                 </div>
-                                                {founder}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#3b82f6' }}>{formatDuration(monthMs)}</td>
-                                        <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#10b981' }}>{formatDuration(yearMs)}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#3b82f6' }}>{formatDuration(monthMs)}</td>
+                                            <td style={{ padding: '0.75rem', fontFamily: 'monospace', color: '#10b981' }}>{formatDuration(yearMs)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
         </>
     );
 };

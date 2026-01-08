@@ -255,7 +255,7 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
             />
 
             <div className="dashboard-grid">
-                <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} />
+                <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} showBreakdown={!!isReadOnly} />
 
                 {!isReadOnly && (
                     <TimerWidget
