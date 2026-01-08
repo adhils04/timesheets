@@ -41,7 +41,7 @@ export const LandingPage = () => {
             {/* Bottom Arrow Button */}
             <div style={{
                 position: 'absolute',
-                bottom: '3rem',
+                bottom: '1rem',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 cursor: 'pointer'
