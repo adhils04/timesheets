@@ -5,7 +5,7 @@ import {
     PieChart,
     LogOut,
     Shield,
-    History
+    History as HistoryIcon
 } from 'lucide-react';
 
 export const Sidebar = ({ user, onLogout }) => {
@@ -32,7 +32,7 @@ export const Sidebar = ({ user, onLogout }) => {
                 </NavLink>
 
                 <NavLink to="/timesheets" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                    <History size={20} />
+                    <HistoryIcon size={20} />
                     <span>Timesheets</span>
                 </NavLink>
 
