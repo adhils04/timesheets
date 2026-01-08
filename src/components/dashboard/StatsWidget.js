@@ -54,39 +54,7 @@ export const StatsWidget = ({ stats, loading, foundersList = [] }) => {
                 <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: '#7209b7' }}></div>
             </div>
 
-            {/* Yearly Breakdown List */}
-            <div className="card breakdown-card">
-                <div className="timer-header">
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Yearly Breakdown</h3>
-                    <Activity size={18} color="var(--text-muted)" />
-                </div>
 
-                <div className="breakdown-list">
-                    {/* Render breakdown based on passed foundersList */}
-                    {foundersList.map(founder => {
-                        const duration = stats.founderStats?.[founder]?.year || 0;
-                        return (
-                            <div key={founder} className="breakdown-item">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div className="history-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem', background: '#e2e8f0', marginRight: 0 }}>
-                                        {getInitials(founder)}
-                                    </div>
-                                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{founder}</span>
-                                </div>
-                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)' }}>
-                                    {duration < 60000 ? '< 1m' : formatDuration(duration)}
-                                </div>
-                            </div>
-                        );
-                    })}
-
-                    {foundersList.length === 0 && (
-                        <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            No data available
-                        </div>
-                    )}
-                </div>
-            </div>
         </>
     );
 };

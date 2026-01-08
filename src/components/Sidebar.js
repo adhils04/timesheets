@@ -40,7 +40,7 @@ export const Sidebar = ({ user, onLogout }) => {
             </nav>
 
             <div className="user-profile-mini">
-                <div className="user-profile-info" onClick={() => { }} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                <div className="user-profile-info" onClick={() => navigate('/profile')} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, cursor: 'pointer' }}>
                     <div className="user-avatar">
                         {getInitials(user?.email)}
                     </div>

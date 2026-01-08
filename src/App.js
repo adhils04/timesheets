@@ -20,6 +20,7 @@ const AdminLogin = lazy(() => import('./pages/AdminLogin').then(module => ({ def
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Signup = lazy(() => import('./pages/Signup').then(module => ({ default: module.Signup })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 
 // Loading Component
 const LoadingFallback = () => (
@@ -172,6 +173,15 @@ const AppContent = () => {
           </ProtectedRoute>
         } />
 
+        {/* Profile Page */}
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <AppLayout user={{ ...user, role: userRole }} onLogout={handleLogout}>
+              <Profile user={user} />
+            </AppLayout>
+          </ProtectedRoute>
+        } />
+
         {/* Admin Replica - Strict Access */}
         <Route path="/admintracker" element={
           <AdminRoute>
@@ -190,7 +200,7 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <Router>
+    <Router basename={process.env.PUBLIC_URL}>
       <AppContent />
     </Router>
   );
