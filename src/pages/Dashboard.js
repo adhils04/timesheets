@@ -60,7 +60,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
         fetchFounders();
     }, [forcedFounder]);
 
-    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || (foundersList[0] || FALLBACK_FOUNDERS[0]));
+    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || (foundersList[0] || (FALLBACK_FOUNDERS && FALLBACK_FOUNDERS[0]) || 'Founder'));
 
     // Sync state when list/forced changes
     useEffect(() => {
@@ -244,7 +244,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
             <TopBar
                 selectedFounder={selectedFounder}
                 setSelectedFounder={forcedFounder ? undefined : setSelectedFounder}
-                title={forcedFounder ? `Welcome, ${forcedFounder.split(' ')[0]}` : "Admin Dashboard"}
+                title={(forcedFounder && typeof forcedFounder === 'string') ? `Welcome, ${forcedFounder.split(' ')[0]}` : "Admin Dashboard"}
                 foundersList={foundersList} // Pass dynamic list to TopBar (need to update TopBar to use it)
             />
 

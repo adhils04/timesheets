@@ -17,11 +17,19 @@ export const HistoryWidget = memo(({ entries, loading, onDelete }) => {
             ) : (
                 <ul className="history-list">
                     {entries.map((entry) => {
-                        const duration = entry.endTime ? formatDuration(entry.endTime - entry.startTime) : 'Active';
+                        const startTime = entry.startTime;
+                        const endTime = entry.endTime;
+
+                        // Safe duration calc
+                        let duration = 'Active';
+                        if (endTime && startTime) {
+                            duration = formatDuration(endTime - startTime);
+                        }
+
                         const initials = getInitials(entry.founder);
                         const colorIndex = FOUNDERS.indexOf(entry.founder) % 4;
                         const colors = ['#4361ee', '#7209b7', '#f72585', '#4cc9f0']; // safe colors
-                        const avatarColor = colors[colorIndex];
+                        const avatarColor = colors[Math.max(0, colorIndex)] || colors[0];
 
                         return (
                             <li key={entry.id} className="history-item">
@@ -33,12 +41,15 @@ export const HistoryWidget = memo(({ entries, loading, onDelete }) => {
                                     <div className="history-meta">
                                         <span>{entry.founder}</span>
                                         <span>•</span>
-                                        <span>{formatDate(entry.startTime)}</span>
+                                        <span>{startTime ? formatDate(startTime) : 'Unknown Date'}</span>
                                         <span>•</span>
-                                        <span>{entry.startTime && entry.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {entry.endTime ? entry.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
+                                        <span>
+                                            {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} -
+                                            {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                        </span>
                                     </div>
                                 </div>
-                                <span className="history-duration" style={!entry.endTime ? { color: '#10b981', background: '#d1fae5' } : {}}>
+                                <span className="history-duration" style={!endTime ? { color: '#10b981', background: '#d1fae5' } : {}}>
                                     {duration}
                                 </span>
                                 <button onClick={() => onDelete(entry.id)} className="history-delete-btn" title="Delete">
