@@ -9,7 +9,7 @@ import {
   signInWithCustomToken,
   updateProfile
 } from 'firebase/auth';
-import { setDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { setDoc, doc, serverTimestamp, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { APP_ID, FOUNDERS } from './constants';
 import { AppLayout } from './layouts/AppLayout';
@@ -63,29 +63,47 @@ const AppContent = () => {
     };
     initAuth();
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        // Fetch Role
-        try {
-          const docRef = doc(db, 'artifacts', APP_ID, 'public', 'users', currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserRole(docSnap.data().role);
-          } else {
-            setUserRole('employee');
-          }
-        } catch (e) {
-          console.error("Failed to fetch role", e);
+      if (!currentUser) {
+        setUserRole(null);
+        setAuthLoading(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  // --- User Role Listener ---
+  useEffect(() => {
+    if (!user) return;
+
+    // Use onSnapshot to handle race conditions during signup (when doc is created slightly after auth)
+    // and to keep role in sync.
+    const userDocRef = doc(db, 'artifacts', APP_ID, 'public', 'users', user.uid);
+
+    // Default to 'employee' if we can't find the doc immediately (will update when doc is created)
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Ensure we capture the role correctly
+        if (data.role) {
+          setUserRole(data.role);
+        } else {
           setUserRole('employee');
         }
       } else {
-        setUserRole(null);
+        setUserRole('employee');
       }
       setAuthLoading(false);
+    }, (error) => {
+      console.error("Error fetching user role:", error);
+      setUserRole('employee');
+      setAuthLoading(false);
     });
-    return () => unsubscribeAuth();
-  }, []);
+
+    return () => unsubscribeUser();
+  }, [user]);
 
   // --- Auth Actions ---
   const handleLogin = async (email, password) => {
