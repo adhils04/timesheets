@@ -29,14 +29,14 @@ export const LandingPage = () => {
                 Welcome to EasyEscape
             </h1>
 
-            <p style={{
+            {/* <p style={{
                 fontSize: '1.25rem',
                 color: 'rgba(255,255,255,0.7)',
                 maxWidth: '600px',
                 lineHeight: 1.6
             }}>
                 The smart way to manage your time and team.
-            </p>
+            </p> */}
 
             {/* Bottom Arrow Button */}
             <div style={{
