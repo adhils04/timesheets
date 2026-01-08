@@ -202,7 +202,13 @@ export const Dashboard = ({ user, forcedFounder }) => {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                if (data.endTime && data.startTime) {
+
+                // If it was an active task, decrement active count
+                if (!data.endTime || data.status === 'active') {
+                    await updateActiveCount(-1);
+                }
+                // If it was a completed task, decrement duration stats
+                else if (data.endTime && data.startTime) {
                     const start = data.startTime.toDate ? data.startTime.toDate() : new Date(data.startTime);
                     const end = data.endTime.toDate ? data.endTime.toDate() : new Date(data.endTime);
                     const duration = end.getTime() - start.getTime();
