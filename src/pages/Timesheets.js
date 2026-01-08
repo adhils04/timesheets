@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, History as HistoryIcon, Search, Filter } from 'lucide-react';
-import { deleteDoc, doc, getDoc, setDoc, increment, getDocs, collection } from 'firebase/firestore';
+import { Trash2, History as HistoryIcon, Search, Filter, Pencil } from 'lucide-react';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc, increment, getDocs, collection, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useTimesheets } from '../hooks/useTimesheets';
 import { TopBar } from '../components/TopBar';
 import { FOUNDERS, APP_ID, COLLECTION_NAME } from '../constants';
 import { formatDuration, formatDate, getInitials } from '../utils';
+import { EditEntryModal } from '../components/dashboard/EditEntryModal';
 
 export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
     const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'founder', 'employee'
     const [userMap, setUserMap] = useState({}); // Name -> Role
+    const [editingEntry, setEditingEntry] = useState(null);
 
     // Fetch data (allow if isAdmin even if no user)
     const { entries, loading } = useTimesheets(user, isAdmin);
@@ -91,6 +93,40 @@ export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
             await deleteDoc(docRef);
         } catch (err) {
             console.error("Error deleting:", err);
+        }
+    };
+
+    const handleUpdateEntry = async (updatedEntry) => {
+        try {
+            const oldEntry = editingEntry;
+            if (!oldEntry) return;
+
+            const entryRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, updatedEntry.id);
+
+            // 1. Revert stats for the old entry (if it was completed)
+            const oldStart = oldEntry.startTime.toDate ? oldEntry.startTime.toDate() : new Date(oldEntry.startTime);
+            const oldEnd = oldEntry.endTime ? (oldEntry.endTime.toDate ? oldEntry.endTime.toDate() : new Date(oldEntry.endTime)) : null;
+
+            if (oldEnd) {
+                const oldDuration = oldEnd.getTime() - oldStart.getTime();
+                await updateStatsInDb(oldEntry.founder, -oldDuration, oldStart);
+            }
+
+            // 2. Add stats for the new entry
+            const newDuration = updatedEntry.endTime.getTime() - updatedEntry.startTime.getTime();
+            await updateStatsInDb(updatedEntry.founder, newDuration, updatedEntry.startTime);
+
+            // 3. Update the document
+            await updateDoc(entryRef, {
+                task: updatedEntry.task,
+                startTime: Timestamp.fromDate(updatedEntry.startTime),
+                endTime: Timestamp.fromDate(updatedEntry.endTime)
+            });
+
+            setEditingEntry(null);
+        } catch (err) {
+            console.error("Error updating entry:", err);
+            alert("Failed to update entry");
         }
     };
 
@@ -206,12 +242,21 @@ export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
                                     <button onClick={() => handleDelete(entry.id)} className="history-delete-btn" title="Delete">
                                         <Trash2 size={16} />
                                     </button>
+                                    <button onClick={() => setEditingEntry(entry)} className="history-edit-btn" title="Edit">
+                                        <Pencil size={16} />
+                                    </button>
                                 </li>
                             );
                         })}
                     </ul>
                 )}
             </div>
+
+            <EditEntryModal
+                entry={editingEntry}
+                onSave={handleUpdateEntry}
+                onCancel={() => setEditingEntry(null)}
+            />
         </>
     );
 };
