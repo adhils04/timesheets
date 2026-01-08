@@ -21,6 +21,7 @@ import { StatsWidget } from '../components/dashboard/StatsWidget';
 import { TimerWidget } from '../components/dashboard/TimerWidget';
 import { HistoryWidget } from '../components/dashboard/HistoryWidget';
 import { MeetingAttendanceWidget } from '../components/dashboard/MeetingAttendanceWidget';
+import { EditEntryModal } from '../components/dashboard/EditEntryModal';
 import {
     FOUNDERS as FALLBACK_FOUNDERS, // Renamed to fallback
     PREDEFINED_TASKS,
@@ -61,6 +62,7 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
     }, [forcedFounder]);
 
     const [selectedFounder, setSelectedFounder] = useState(forcedFounder || (foundersList[0] || (FALLBACK_FOUNDERS && FALLBACK_FOUNDERS[0]) || 'Founder'));
+    const [editingEntry, setEditingEntry] = useState(null);
 
     // Sync state when list/forced changes
     useEffect(() => {
@@ -221,6 +223,40 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
         }
     }, []);
 
+    const handleUpdateEntry = async (updatedEntry) => {
+        try {
+            const oldEntry = editingEntry;
+            if (!oldEntry) return;
+
+            const entryRef = doc(db, 'artifacts', APP_ID, 'public', 'data', COLLECTION_NAME, updatedEntry.id);
+
+            // 1. Revert stats for the old entry (if it was completed)
+            const oldStart = oldEntry.startTime.toDate ? oldEntry.startTime.toDate() : new Date(oldEntry.startTime);
+            const oldEnd = oldEntry.endTime ? (oldEntry.endTime.toDate ? oldEntry.endTime.toDate() : new Date(oldEntry.endTime)) : null;
+
+            if (oldEnd) {
+                const oldDuration = oldEnd.getTime() - oldStart.getTime();
+                await updateStatsInDb(oldEntry.founder, -oldDuration, oldStart);
+            }
+
+            // 2. Add stats for the new entry
+            const newDuration = updatedEntry.endTime.getTime() - updatedEntry.startTime.getTime();
+            await updateStatsInDb(updatedEntry.founder, newDuration, updatedEntry.startTime);
+
+            // 3. Update the document
+            await updateDoc(entryRef, {
+                task: updatedEntry.task,
+                startTime: Timestamp.fromDate(updatedEntry.startTime),
+                endTime: Timestamp.fromDate(updatedEntry.endTime)
+            });
+
+            setEditingEntry(null);
+        } catch (err) {
+            console.error("Error updating entry:", err);
+            alert("Failed to update entry");
+        }
+    };
+
 
     // --- Personal Stats Calculation ---
     const effectiveStats = (forcedFounder && stats.founderStats && stats.founderStats[forcedFounder])
@@ -273,8 +309,15 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
                     entries={recentEntries}
                     loading={recentLoading}
                     onDelete={handleDelete}
+                    onEdit={setEditingEntry}
                 />
             </div>
+
+            <EditEntryModal
+                entry={editingEntry}
+                onSave={handleUpdateEntry}
+                onCancel={() => setEditingEntry(null)}
+            />
         </>
     );
 };

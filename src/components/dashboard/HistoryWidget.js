@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
-import { History, Trash2 } from 'lucide-react';
+import { History, Trash2, Pencil } from 'lucide-react';
 import { formatDuration, formatDate, getInitials } from '../../utils';
 import { FOUNDERS } from '../../constants';
 
-export const HistoryWidget = memo(({ entries, loading, onDelete }) => {
+export const HistoryWidget = memo(({ entries, loading, onDelete, onEdit }) => {
     return (
         <div className="card history-section animate-slide-up delay-300">
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -54,6 +54,9 @@ export const HistoryWidget = memo(({ entries, loading, onDelete }) => {
                                 </span>
                                 <button onClick={() => onDelete(entry.id)} className="history-delete-btn" title="Delete">
                                     <Trash2 size={16} />
+                                </button>
+                                <button onClick={() => onEdit(entry)} className="history-edit-btn" title="Edit">
+                                    <Pencil size={16} />
                                 </button>
                             </li>
                         );
