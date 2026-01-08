@@ -1,22 +1,43 @@
-import React, { useState } from 'react';
-import { Trash2, History as HistoryIcon } from 'lucide-react';
-import { deleteDoc, doc, getDoc, setDoc, increment } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { Trash2, History as HistoryIcon, Search, Filter } from 'lucide-react';
+import { deleteDoc, doc, getDoc, setDoc, increment, getDocs, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useTimesheets } from '../hooks/useTimesheets';
 import { TopBar } from '../components/TopBar';
 import { FOUNDERS, APP_ID, COLLECTION_NAME } from '../constants';
 import { formatDuration, formatDate, getInitials } from '../utils';
 
-import { Search } from 'lucide-react';
-
 export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
     const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'founder', 'employee'
+    const [userMap, setUserMap] = useState({}); // Name -> Role
 
     // Fetch data (allow if isAdmin even if no user)
     const { entries, loading } = useTimesheets(user, isAdmin);
 
-    // ... (stats helpers unchanged) ...
+    // Fetch User Roles for Admin Filtering
+    useEffect(() => {
+        const fetchRoles = async () => {
+            if (isAdmin) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, 'artifacts', APP_ID, 'users'));
+                    const map = {};
+                    querySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.fullName && data.role) {
+                            map[data.fullName] = data.role;
+                        }
+                    });
+                    setUserMap(map);
+                } catch (e) {
+                    console.error("Error fetching user roles:", e);
+                }
+            }
+        };
+        fetchRoles();
+    }, [isAdmin]);
+
     // Helper for stats updates (duplicated safely here to ensure robustness)
     const updateStatsInDb = async (founder, duration, date) => {
         try {
@@ -76,9 +97,22 @@ export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
     if (loading) return <div>Loading...</div>;
 
     // Filter Logic
-    const filteredEntries = isAdmin
+    let filteredEntries = isAdmin
         ? entries.filter(e => e.founder.toLowerCase().includes(searchQuery.toLowerCase()))
         : entries.filter(e => e.founder === selectedFounder);
+
+    // Apply Role Filter
+    if (isAdmin && roleFilter !== 'all') {
+        filteredEntries = filteredEntries.filter(e => {
+            const role = userMap[e.founder];
+            // If user not in map (e.g. legacy data), default to 'founder' or 'employee' based on... logic? 
+            // Or just exclude? 
+            // Better to include if uncertain or maybe check Fallback Founders list?
+            // FOUNDERS constant has names.
+            if (!role) return FOUNDERS.includes(e.founder) ? (roleFilter === 'founder') : (roleFilter === 'employee');
+            return role === roleFilter;
+        });
+    }
 
     return (
         <>
@@ -89,19 +123,35 @@ export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
                 foundersList={isAdmin ? [] : (forcedFounder ? [forcedFounder] : FOUNDERS)}
             />
 
-            {/* Admin Search Bar */}
+            {/* Admin Filter Controls */}
             {isAdmin && (
-                <div style={{ marginTop: '2rem', marginBottom: '1rem' }}>
-                    <div style={{ position: 'relative', maxWidth: '400px' }}>
+                <div style={{ marginTop: '2rem', marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    {/* Search */}
+                    <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
                         <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input
                             type="text"
-                            placeholder="Search by founder name..."
+                            placeholder="Search by name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="custom-input"
-                            style={{ paddingLeft: '2.5rem' }}
+                            style={{ paddingLeft: '2.5rem', width: '100%' }}
                         />
+                    </div>
+
+                    {/* Role Filter */}
+                    <div style={{ position: 'relative', minWidth: '150px' }}>
+                        <Filter size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <select
+                            value={roleFilter}
+                            onChange={(e) => setRoleFilter(e.target.value)}
+                            className="custom-input"
+                            style={{ paddingLeft: '2.5rem', width: '100%', cursor: 'pointer', appearance: 'none' }}
+                        >
+                            <option value="all">All Roles</option>
+                            <option value="founder">Founders</option>
+                            <option value="employee">Employees</option>
+                        </select>
                     </div>
                 </div>
             )}
@@ -113,7 +163,7 @@ export const Timesheets = ({ user, forcedFounder, isAdmin }) => {
 
                 {filteredEntries.length === 0 ? (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        {isAdmin && searchQuery ? "No matching records found." : "No activities recorded yet."}
+                        {isAdmin ? "No matching records found." : "No activities recorded yet."}
                     </div>
                 ) : (
                     <ul className="history-list">
