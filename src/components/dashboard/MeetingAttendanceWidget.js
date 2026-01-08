@@ -9,7 +9,7 @@ import {
 import { db } from '../../firebase';
 import { APP_ID } from '../../constants';
 
-export const MeetingAttendanceWidget = React.memo(({ foundersList = [] }) => {
+export const MeetingAttendanceWidget = React.memo(({ foundersList = [], isReadOnly }) => {
     // Helper to get default attendance state based on PROPS
     const getDefaultAttendance = () =>
         foundersList.reduce((acc, founder) => ({ ...acc, [founder]: false }), {});
@@ -168,31 +168,33 @@ export const MeetingAttendanceWidget = React.memo(({ foundersList = [] }) => {
         <div className="card meeting-attendance-card" style={{ gridColumn: 'span 12' }}>
             <div className="timer-header">
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Founders Weekly Meeting</h2>
-                {/* ... Date selection ... */}
-                <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="custom-input" style={{ padding: '0.5rem', width: 'auto' }} />
+                {!isReadOnly && (
+                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="custom-input" style={{ padding: '0.5rem', width: 'auto' }} />
+                )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1.5rem' }}>
-                {/* Form */}
-                <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: '12px' }}>
-                    {/* ... Title ... */}
-                    <h3 style={{ marginTop: 0 }}>Mark Attendance {isNewEntry && <span style={{ fontSize: '0.8rem' }}>(New)</span>}</h3>
-                    {loading ? (<div>Loading...</div>) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {foundersList.map(founder => (
-                                <label key={founder} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', background: attendance[founder] ? 'rgba(16, 185, 129, 0.1)' : 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                    <input type="checkbox" checked={attendance[founder] || false} onChange={() => handleCheckboxChange(founder)} />
-                                    <span>{founder}</span>
-                                </label>
-                            ))}
-                        </div>
-                    )}
-                    <button onClick={handleSave} disabled={saving} style={{ marginTop: '1rem', width: '100%', padding: '1rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white' }}>
-                        {saving ? 'Saving...' : 'Save Attendance'}
-                    </button>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isReadOnly ? '1fr' : '1fr 1fr', gap: '2rem', marginTop: '1.5rem' }}>
+                {/* Form - Only show if NOT ReadOnly */}
+                {!isReadOnly && (
+                    <div style={{ background: '#f8f9fa', padding: '1.5rem', borderRadius: '12px' }}>
+                        <h3 style={{ marginTop: 0 }}>Mark Attendance {isNewEntry && <span style={{ fontSize: '0.8rem' }}>(New)</span>}</h3>
+                        {loading ? (<div>Loading...</div>) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {foundersList.map(founder => (
+                                    <label key={founder} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', background: attendance[founder] ? 'rgba(16, 185, 129, 0.1)' : 'white', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                        <input type="checkbox" checked={attendance[founder] || false} onChange={() => handleCheckboxChange(founder)} />
+                                        <span>{founder}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                        <button onClick={handleSave} disabled={saving} style={{ marginTop: '1rem', width: '100%', padding: '1rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white' }}>
+                            {saving ? 'Saving...' : 'Save Attendance'}
+                        </button>
+                    </div>
+                )}
 
-                {/* Overview */}
+                {/* Overview - Always Show */}
                 <div>
                     <h3>Attendance Overview</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>

@@ -257,15 +257,17 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
             <div className="dashboard-grid">
                 <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} />
 
-                <TimerWidget
-                    activeEntry={activeEntry}
-                    activeLoading={activeLoading}
-                    onClockIn={handleClockIn}
-                    onClockOut={handleClockOut}
-                    onManualSubmit={handleManualSubmit}
-                />
+                {!isReadOnly && (
+                    <TimerWidget
+                        activeEntry={activeEntry}
+                        activeLoading={activeLoading}
+                        onClockIn={handleClockIn}
+                        onClockOut={handleClockOut}
+                        onManualSubmit={handleManualSubmit}
+                    />
+                )}
 
-                <MeetingAttendanceWidget foundersList={foundersList} />
+                <MeetingAttendanceWidget foundersList={foundersList} isReadOnly={isReadOnly} />
 
                 <HistoryWidget
                     entries={recentEntries}
