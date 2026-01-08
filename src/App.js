@@ -81,7 +81,9 @@ const AppContent = () => {
 
     // Use onSnapshot to handle race conditions during signup (when doc is created slightly after auth)
     // and to keep role in sync.
-    const userDocRef = doc(db, 'artifacts', APP_ID, 'public', 'users', user.uid);
+    // Use onSnapshot to handle race conditions during signup (when doc is created slightly after auth)
+    // and to keep role in sync.
+    const userDocRef = doc(db, 'artifacts', APP_ID, 'users', user.uid);
 
     // Default to 'employee' if we can't find the doc immediately (will update when doc is created)
     const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
@@ -118,7 +120,7 @@ const AppContent = () => {
 
     await updateProfile(newUser, { displayName: fullName });
 
-    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'users', newUser.uid), {
+    await setDoc(doc(db, 'artifacts', APP_ID, 'users', newUser.uid), {
       email,
       fullName,
       phoneNumber,

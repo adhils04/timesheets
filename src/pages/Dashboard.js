@@ -40,7 +40,7 @@ export const Dashboard = ({ user, forcedFounder }) => {
             } else {
                 try {
                     const q = query(
-                        collection(db, 'artifacts', APP_ID, 'public', 'users'),
+                        collection(db, 'artifacts', APP_ID, 'users'),
                         where('role', '==', 'founder')
                     );
                     const querySnapshot = await getDocs(q);
