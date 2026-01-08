@@ -7,8 +7,8 @@ import { TopBar } from '../components/TopBar';
 import { FOUNDERS, APP_ID, COLLECTION_NAME } from '../constants';
 import { formatDuration, formatDate, getInitials } from '../utils';
 
-export const Timesheets = ({ user }) => {
-    const [selectedFounder, setSelectedFounder] = useState(FOUNDERS[0]);
+export const Timesheets = ({ user, forcedFounder }) => {
+    const [selectedFounder, setSelectedFounder] = useState(forcedFounder || FOUNDERS[0]);
     const { entries, loading } = useTimesheets(user);
 
     const handleDelete = async (id) => {
@@ -26,8 +26,8 @@ export const Timesheets = ({ user }) => {
         <>
             <TopBar
                 selectedFounder={selectedFounder}
-                setSelectedFounder={setSelectedFounder}
-                title="Timesheet History"
+                setSelectedFounder={forcedFounder ? undefined : setSelectedFounder}
+                title={forcedFounder ? "My Timesheet History" : "Timesheet History"}
             />
 
             <div className="card history-section" style={{ marginTop: '2rem' }}>

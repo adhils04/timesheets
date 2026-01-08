@@ -20,6 +20,7 @@ const AdminLogin = lazy(() => import('./pages/AdminLogin').then(module => ({ def
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Signup = lazy(() => import('./pages/Signup').then(module => ({ default: module.Signup })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Timesheets = lazy(() => import('./pages/Timesheets').then(module => ({ default: module.Timesheets })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 
 // Loading Component
@@ -169,6 +170,15 @@ const AppContent = () => {
             {/* Always Personal Mode */}
             <AppLayout user={{ ...user, role: userRole }} onLogout={handleLogout}>
               <Dashboard user={{ ...user, role: userRole }} forcedFounder={currentFounderName} />
+            </AppLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* Timesheets History */}
+        <Route path="/timesheets" element={
+          <ProtectedRoute>
+            <AppLayout user={{ ...user, role: userRole }} onLogout={handleLogout}>
+              <Timesheets user={{ ...user, role: userRole }} forcedFounder={currentFounderName} />
             </AppLayout>
           </ProtectedRoute>
         } />

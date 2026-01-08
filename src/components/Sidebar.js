@@ -4,7 +4,8 @@ import {
     Clock,
     PieChart,
     LogOut,
-    Shield
+    Shield,
+    History
 } from 'lucide-react';
 
 export const Sidebar = ({ user, onLogout }) => {
@@ -28,6 +29,11 @@ export const Sidebar = ({ user, onLogout }) => {
                 <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                     <PieChart size={20} />
                     <span>My Dashboard</span>
+                </NavLink>
+
+                <NavLink to="/timesheets" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                    <History size={20} />
+                    <span>Timesheets</span>
                 </NavLink>
 
                 {/* Admin Tracker - Only for Admins */}
