@@ -99,7 +99,9 @@ export const TimerWidget = memo(({ activeEntry, activeLoading, onClockIn, onCloc
                                     <div>
                                         <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.25rem' }}>Active Task</div>
                                         <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{activeEntry.task}</div>
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Started at {activeEntry.startTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                                            Started at {activeEntry.startTime ? activeEntry.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'}
+                                        </div>
                                     </div>
                                     <div className="btn-pulse" style={{ width: '12px', height: '12px', background: '#10b981', borderRadius: '50%' }}></div>
                                 </div>

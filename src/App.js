@@ -1,6 +1,7 @@
 /* global __initial_auth_token */
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -229,7 +230,9 @@ const AppContent = () => {
 export default function App() {
   return (
     <Router basename={process.env.PUBLIC_URL}>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </Router>
   );
 }
