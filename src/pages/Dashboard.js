@@ -28,7 +28,7 @@ import {
     APP_ID
 } from '../constants';
 
-export const Dashboard = ({ user, forcedFounder }) => {
+export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
     // Dynamic Founders List
     const [foundersList, setFoundersList] = useState([]);
 
@@ -40,8 +40,8 @@ export const Dashboard = ({ user, forcedFounder }) => {
             } else {
                 try {
                     const q = query(
-                        collection(db, 'artifacts', APP_ID, 'users'),
-                        where('role', '==', 'founder')
+                        collection(db, 'artifacts', APP_ID, 'users')
+                        // Fetch ALL users (founders + employees) for Admin Dashboard
                     );
                     const querySnapshot = await getDocs(q);
                     const names = querySnapshot.docs.map(doc => doc.data().fullName).filter(n => n);

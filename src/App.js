@@ -149,17 +149,9 @@ const AppContent = () => {
   };
 
   const AdminRoute = ({ children }) => {
-    if (!user) return <Navigate to="/login" replace />;
-
-    // 1. Verify Role
-    // (Allow fallback for hardcoded dev email if needed, but strictly role prefers)
-    if (userRole !== 'admin' && user.email !== 'adhil.founder@timesheets.com') {
-      return <Navigate to="/dashboard" replace />;
-    }
-
-    // 2. Verify Biometric (Simulation)
+    // 1. Verify Secret Code (Public Access Allowed)
     if (!adminVerified) {
-      return <Navigate to="/admin-login" replace />;
+      return <Navigate to="/admintracker" replace />;
     }
 
     return children;
@@ -176,13 +168,27 @@ const AppContent = () => {
 
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup onSignup={handleSignup} />} />
 
-        {/* Biometric Gate */}
-        <Route path="/admin-login" element={
-          !user ? <Navigate to="/login" /> :
-            <AdminLogin user={{ ...user, role: userRole }} onSuccess={() => {
+        {/* Admin Section */}
+
+        {/* 1. Admin Login (Secret Code) */}
+        <Route path="/admintracker" element={
+          <AdminLogin
+            user={{ ...user, role: userRole }}
+            onSuccess={() => {
               setAdminVerified(true);
-              navigate('/admintracker');
-            }} />
+              navigate('/admintracker/dashboard');
+            }}
+          />
+        } />
+
+        {/* 2. Admin Dashboard (Protected by Secret Code) */}
+        <Route path="/admintracker/dashboard" element={
+          <AdminRoute>
+            <AppLayout user={user} onLogout={handleLogout}>
+              {/* Admin Mode (forcedFounder=undefined) */}
+              <Dashboard user={user} isReadOnly={!user} />
+            </AppLayout>
+          </AdminRoute>
         } />
 
         {/* Dashboard for Founders/Employees */}
@@ -211,16 +217,6 @@ const AppContent = () => {
               <Profile user={user} />
             </AppLayout>
           </ProtectedRoute>
-        } />
-
-        {/* Admin Replica - Strict Access */}
-        <Route path="/admintracker" element={
-          <AdminRoute>
-            <AppLayout user={{ ...user, role: userRole }} onLogout={handleLogout}>
-              {/* Admin Mode (forcedFounder=undefined) */}
-              <Dashboard user={{ ...user, role: userRole }} />
-            </AppLayout>
-          </AdminRoute>
         } />
 
         <Route path="*" element={<Navigate to="/" replace />} />
