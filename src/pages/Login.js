@@ -58,6 +58,20 @@ export const Login = ({ onLogin }) => {
                         />
                     </div>
 
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem', marginBottom: '1.5rem' }}>
+                        <span
+                            onClick={() => navigate('/resetpassword')}
+                            style={{
+                                color: 'var(--primary)',
+                                fontSize: '0.875rem',
+                                cursor: 'pointer',
+                                fontWeight: 500
+                            }}
+                        >
+                            Forgot password?
+                        </span>
+                    </div>
+
                     {error && (
                         <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span>⚠️</span> {error}

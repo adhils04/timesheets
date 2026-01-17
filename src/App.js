@@ -23,6 +23,7 @@ const Signup = lazy(() => import('./pages/Signup').then(module => ({ default: mo
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const Timesheets = lazy(() => import('./pages/Timesheets').then(module => ({ default: module.Timesheets })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
+const ResetPassword = lazy(() => import('./pages/ResetPassword').then(module => ({ default: module.ResetPassword })));
 
 // Loading Component
 const LoadingFallback = () => (
@@ -165,6 +166,8 @@ const AppContent = () => {
         <Route path="/" element={<LandingPage />} />
 
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+
+        <Route path="/resetpassword" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
 
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup onSignup={handleSignup} />} />
 
