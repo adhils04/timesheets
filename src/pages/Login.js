@@ -65,7 +65,8 @@ export const Login = ({ onLogin }) => {
                                 color: 'var(--primary)',
                                 fontSize: '0.875rem',
                                 cursor: 'pointer',
-                                fontWeight: 500
+                                fontWeight: 500,
+                                textDecoration: 'underline'
                             }}
                         >
                             Forgot password?

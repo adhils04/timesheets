@@ -69,6 +69,20 @@ export const AdminLogin = ({ user, onSuccess }) => {
                 >
                     Verify Access
                 </button>
+
+                <div style={{ textAlign: 'center' }}>
+                    <span
+                        onClick={() => alert('Please contact the system administrator to retrieve the access code.')}
+                        style={{
+                            color: '#64748b',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                        }}
+                    >
+                        Forgot Code?
+                    </span>
+                </div>
             </form>
 
             <button
