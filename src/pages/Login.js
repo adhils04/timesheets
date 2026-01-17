@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export const Login = ({ onLogin }) => {
     const navigate = useNavigate();
@@ -59,22 +59,17 @@ export const Login = ({ onLogin }) => {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem', marginBottom: '1.5rem' }}>
-                        <button
-                            type="button"
-                            onClick={() => navigate('/resetpassword')}
+                        <Link
+                            to="/resetpassword"
                             style={{
-                                background: 'none',
-                                border: 'none',
                                 color: 'var(--primary)',
                                 fontSize: '0.875rem',
-                                cursor: 'pointer',
                                 fontWeight: 500,
-                                textDecoration: 'underline',
-                                padding: '0.25rem 0' // Add some padding for hit area
+                                textDecoration: 'underline'
                             }}
                         >
                             Forgot password?
-                        </button>
+                        </Link>
                     </div>
 
                     {error && (
