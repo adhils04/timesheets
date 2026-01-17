@@ -43,7 +43,7 @@ export const Login = ({ onLogin }) => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="custom-input"
-                            placeholder="you@example.com"
+                            placeholder="you@easy-escape.com"
                         />
                     </div>
                     <div className="input-group">
