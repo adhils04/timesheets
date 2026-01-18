@@ -61,7 +61,7 @@ export const ResetPassword = () => {
                 {!emailSent ? (
                     <>
                         <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                            Enter your work email to receive a password reset link
+                            Enter your email to receive a password reset link
                         </p>
 
                         <form onSubmit={handleEmailSubmit}>
@@ -75,7 +75,7 @@ export const ResetPassword = () => {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         className="custom-input"
-                                        placeholder="you@easy-escape.com"
+                                        placeholder="you@gmail.com"
                                         style={{ paddingLeft: '2.5rem' }}
                                     />
                                 </div>
@@ -104,6 +104,7 @@ export const ResetPassword = () => {
                             <div>
                                 <h3 style={{ margin: '0 0 0.5rem 0' }}>Email Sent!</h3>
                                 <p style={{ margin: 0 }}>Check your inbox for a link to reset your password.</p>
+                                <p style={{ margin: 0 }}>⚠️Check the spam folder also.⚠️</p>
                             </div>
                         </div>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
