@@ -62,10 +62,11 @@ export const Login = ({ onLogin }) => {
                         <Link
                             to="/resetpassword"
                             style={{
-                                color: 'var(--primary)',
+                                color: 'var(--primary, #4361ee)',
                                 fontSize: '0.875rem',
                                 fontWeight: 500,
-                                textDecoration: 'underline'
+                                textDecoration: 'underline',
+                                cursor: 'pointer'
                             }}
                         >
                             Forgot password?
