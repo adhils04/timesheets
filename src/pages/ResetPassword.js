@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Key, Lock, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../firebase';
 
 export const ResetPassword = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password
     const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [generatedOtp, setGeneratedOtp] = useState(null);
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
+    const [emailSent, setEmailSent] = useState(false);
 
-    const handleEmailSubmit = (e) => {
+    const handleEmailSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -24,161 +21,20 @@ export const ResetPassword = () => {
         }
 
         setLoading(true);
-        // Simulate sending email
-        setTimeout(() => {
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
-            setGeneratedOtp(code);
-            console.log(`[SIMULATION] Email sent to ${email} with code: ${code}`);
-            alert(`[SIMULATION] Verification Code: ${code}`);
-
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setEmailSent(true);
+        } catch (err) {
+            console.error("Password reset error:", err);
+            if (err.code === 'auth/user-not-found') {
+                setError('No account found with this email.');
+            } else {
+                setError(err.message || 'Failed to send reset email. Please try again.');
+            }
+        } finally {
             setLoading(false);
-            setStep(2);
-            setSuccessMessage(`One-time password sent to ${email}`);
-        }, 1500);
-    };
-
-    const handleOtpSubmit = (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (otp !== generatedOtp) {
-            setError('Invalid verification code. Please try again.');
-            return;
         }
-
-        setStep(3);
-        setSuccessMessage('Code verified successfully.');
     };
-
-    const handlePasswordReset = async (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (newPassword.length < 6) {
-            setError('Password should be at least 6 characters.');
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match.');
-            return;
-        }
-
-        setLoading(true);
-        // Simulate password reset logic
-        setTimeout(() => {
-            setLoading(false);
-            setSuccessMessage('Password reset successfully!');
-            // Here you would typically call Firebase to update, but as noted, we are mocking the success flow
-            // updatePassword(currentUser, newPassword) - requires authentication
-
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
-        }, 1500);
-    };
-
-    const renderStep1 = () => (
-        <form onSubmit={handleEmailSubmit}>
-            <div className="input-group">
-                <label className="input-label">Email Address</label>
-                <div style={{ position: 'relative' }}>
-                    <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="custom-input"
-                        placeholder="you@easy-escape.com"
-                        style={{ paddingLeft: '2.5rem' }}
-                    />
-                </div>
-            </div>
-            <button
-                type="submit"
-                disabled={loading}
-                className="action-btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}
-            >
-                {loading ? 'Sending Code...' : 'Send Verification Code'}
-            </button>
-        </form>
-    );
-
-    const renderStep2 = () => (
-        <form onSubmit={handleOtpSubmit}>
-            <div className="input-group">
-                <label className="input-label">Verification Code</label>
-                <div style={{ position: 'relative' }}>
-                    <Key size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                        type="text"
-                        required
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        className="custom-input"
-                        placeholder="123456"
-                        maxLength={6}
-                        style={{ paddingLeft: '2.5rem', letterSpacing: '4px' }}
-                    />
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Check your email or the browser alert/console.
-                </p>
-            </div>
-            <button
-                type="submit"
-                className="action-btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}
-            >
-                Verify Code
-            </button>
-        </form>
-    );
-
-    const renderStep3 = () => (
-        <form onSubmit={handlePasswordReset}>
-            <div className="input-group">
-                <label className="input-label">New Password</label>
-                <div style={{ position: 'relative' }}>
-                    <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="custom-input"
-                        placeholder="••••••••"
-                        style={{ paddingLeft: '2.5rem' }}
-                    />
-                </div>
-            </div>
-            <div className="input-group">
-                <label className="input-label">Confirm Password</label>
-                <div style={{ position: 'relative' }}>
-                    <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="custom-input"
-                        placeholder="••••••••"
-                        style={{ paddingLeft: '2.5rem' }}
-                    />
-                </div>
-            </div>
-            <button
-                type="submit"
-                disabled={loading}
-                className="action-btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}
-            >
-                {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-        </form>
-    );
 
     return (
         <div className="login-container">
@@ -201,27 +57,60 @@ export const ResetPassword = () => {
                 </div>
 
                 <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>Reset Password</h2>
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                    {step === 1 && "Enter your work email to receive a code"}
-                    {step === 2 && "Enter the 6-digit code sent to your email"}
-                    {step === 3 && "Create a new secure password"}
-                </p>
 
-                {error && (
-                    <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>⚠️</span> {error}
+                {!emailSent ? (
+                    <>
+                        <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                            Enter your work email to receive a password reset link
+                        </p>
+
+                        <form onSubmit={handleEmailSubmit}>
+                            <div className="input-group">
+                                <label className="input-label">Email Address</label>
+                                <div style={{ position: 'relative' }}>
+                                    <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input
+                                        type="email"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="custom-input"
+                                        placeholder="you@easy-escape.com"
+                                        style={{ paddingLeft: '2.5rem' }}
+                                    />
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span>⚠️</span> {error}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="action-btn btn-primary"
+                                style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}
+                            >
+                                {loading ? 'Sending Link...' : 'Send Reset Link'}
+                            </button>
+                        </form>
+                    </>
+                ) : (
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ background: '#dcfce7', color: '#166534', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                            <CheckCircle size={48} />
+                            <div>
+                                <h3 style={{ margin: '0 0 0.5rem 0' }}>Email Sent!</h3>
+                                <p style={{ margin: 0 }}>Check your inbox for a link to reset your password.</p>
+                            </div>
+                        </div>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                            Didn't receive it? <button onClick={() => setEmailSent(false)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>Try again</button>
+                        </p>
                     </div>
                 )}
-
-                {successMessage && !error && (
-                    <div style={{ background: '#dcfce7', color: '#166534', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <CheckCircle size={18} /> {successMessage}
-                    </div>
-                )}
-
-                {step === 1 && renderStep1()}
-                {step === 2 && renderStep2()}
-                {step === 3 && renderStep3()}
             </div>
         </div>
     );
