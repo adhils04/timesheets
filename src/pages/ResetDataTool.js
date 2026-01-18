@@ -9,7 +9,7 @@ export const ResetDataTool = () => {
     const [password, setPassword] = useState('');
 
     const handleClearData = async () => {
-        if (password !== 'admin123') { // Simple protection
+        if (password !== '097756') { // Simple protection
             setStatus('Incorrect Password');
             return;
         }
