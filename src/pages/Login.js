@@ -16,7 +16,15 @@ export const Login = ({ onLogin }) => {
         try {
             await onLogin(email, password);
         } catch (err) {
-            setError('Invalid credentials');
+            console.error(err);
+            // If the error message is our custom one about verification, use it.
+            // Firebase errors usually have prefixes like 'firebase: ...'. 
+            // We can just show err.message if it's user friendly, or map it.
+            if (err.message.includes("Email verification pending")) {
+                setError(err.message);
+            } else {
+                setError('Invalid credentials');
+            }
             setLoading(false);
         }
     };

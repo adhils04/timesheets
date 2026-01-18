@@ -113,7 +113,18 @@ const AppContent = () => {
 
   // --- Auth Actions ---
   const handleLogin = async (email, password) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    if (!user.emailVerified) {
+      await signOut(auth);
+      // We can't use alert() directly here nicely if we want to show it in the UI properly (as `error` state).
+      // But `handleLogin` is async called from Login.js inside a try-catch.
+      // If we throw an Error here, Login.js will catch it and show "Invalid credentials" by default unless we change that.
+      // Let's modify Login.js to show the specific error message too.
+      throw new Error("Email verification pending. Please verify your email before signing in.");
+    }
+
     navigate('/dashboard');
   };
 
@@ -140,8 +151,13 @@ const AppContent = () => {
       joinedAt: serverTimestamp()
     });
 
-    setUserRole(role);
-    navigate('/dashboard');
+    // Sign out immediately so they can't access dashboard until verified
+    await signOut(auth);
+    setUser(null);
+    setUserRole(null);
+
+    alert("Account created successfully! Please check your email and verify your account before logging in.");
+    navigate('/login');
   };
 
   const handleLogout = async () => {
