@@ -8,7 +8,8 @@ import {
   signOut,
   onAuthStateChanged,
   signInWithCustomToken,
-  updateProfile
+  updateProfile,
+  sendEmailVerification
 } from 'firebase/auth';
 import { setDoc, doc, serverTimestamp, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -121,6 +122,15 @@ const AppContent = () => {
     const newUser = userCredential.user;
 
     await updateProfile(newUser, { displayName: fullName });
+
+    // Send Verification Email
+    try {
+      await sendEmailVerification(newUser);
+      alert("Account created successfully! A verification email has been sent to your inbox.");
+    } catch (e) {
+      console.error("Failed to send verification email:", e);
+      // Continue with signup even if email fails (non-blocking)
+    }
 
     await setDoc(doc(db, 'artifacts', APP_ID, 'users', newUser.uid), {
       email,
