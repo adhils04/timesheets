@@ -30,31 +30,44 @@ import {
 } from '../constants';
 
 export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
-    // Dynamic Founders List
+    // Dynamic Founders List & User Data
     const [foundersList, setFoundersList] = useState([]);
+    const [usersData, setUsersData] = useState([]); // [{ name, role, ... }]
 
     // Fetch founders from DB if Admin Mode, otherwise just use forcedFounder
     useEffect(() => {
         const fetchFounders = async () => {
             if (forcedFounder) {
                 setFoundersList([forcedFounder]);
+                // For simplified view, we don't strictly need usersData if only 1 user,
+                // but for consistency we could try to fetch their role or just default.
+                // Since forcedFounder string doesn't have role, StatsWidget will treat as default.
+                setUsersData([{ name: forcedFounder, role: 'employee' }]);
+                // Note: user prop might have role? user.role. 
+                // But logic below relies on usersData for "Admin" view mostly.
             } else {
                 try {
                     const q = query(
                         collection(db, 'artifacts', APP_ID, 'users')
-                        // Fetch ALL users (founders + employees) for Admin Dashboard
                     );
                     const querySnapshot = await getDocs(q);
-                    const names = querySnapshot.docs.map(doc => doc.data().fullName).filter(n => n);
 
-                    if (names.length > 0) {
-                        setFoundersList(names);
+                    const users = querySnapshot.docs.map(doc => ({
+                        name: doc.data().fullName,
+                        role: doc.data().role || 'employee'
+                    })).filter(u => u.name);
+
+                    if (users.length > 0) {
+                        setFoundersList(users.map(u => u.name));
+                        setUsersData(users);
                     } else {
-                        setFoundersList([]); // No fallback to ensure accurate representation of DB
+                        setFoundersList([]);
+                        setUsersData([]);
                     }
                 } catch (e) {
                     console.error("Error fetching founders:", e);
                     setFoundersList([]);
+                    setUsersData([]);
                 }
             }
         };
@@ -291,7 +304,7 @@ export const Dashboard = ({ user, forcedFounder, isReadOnly }) => {
             />
 
             <div className="dashboard-grid">
-                <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} showBreakdown={!!isReadOnly} />
+                <StatsWidget stats={effectiveStats} loading={statsLoading} foundersList={foundersList} usersData={usersData} showBreakdown={!!isReadOnly} />
 
                 {!isReadOnly && (
                     <TimerWidget

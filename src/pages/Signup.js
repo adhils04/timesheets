@@ -24,9 +24,35 @@ export const Signup = ({ onSignup }) => {
         setLoading(true);
         setError('');
 
-        // Basic validations
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters");
+        // 1. Mandatory Fields Check
+        if (!email || !password || !fullName || !phoneNumber) {
+            setError("All fields are required (Name, Email, Phone, Password)");
+            setLoading(false);
+            return;
+        }
+
+        // 2. Mobile Validation (Exact 10 digits)
+        const phoneRegex = /^\d{10}$/;
+        // Strip spaces first? The user said "should contain only 10 digits".
+        // If the user inputs spaces, it might fail. Let's assume input needs to be clean or we clean it.
+        // But the user said "contain only 10 digits". 
+        // Let's strip spaces/dashes for the check or just check raw input?
+        // Usually safer to check raw input if we want strict compliance to "10 digits".
+        // But user UX: they might type space.
+        // "mobile number: should contain only 10 digits."
+        // I will check the cleaned version.
+        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (!phoneRegex.test(cleanPhone)) {
+            setError("Mobile number must be exactly 10 digits");
+            setLoading(false);
+            return;
+        }
+
+        // 3. Password Validation
+        // At least 8 chars, chars, numbers, symbols
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            setError("Password must be at least 8 characters and include letters, numbers, and symbols");
             setLoading(false);
             return;
         }
@@ -41,7 +67,7 @@ export const Signup = ({ onSignup }) => {
         }
 
         try {
-            const fullPhoneNumber = `${countryCode} ${phoneNumber}`;
+            const fullPhoneNumber = `${countryCode} ${phoneNumber.replace(/\D/g, '')}`;
             // Pass role to the handler
             await onSignup(email, password, fullName, fullPhoneNumber, role);
         } catch (err) {

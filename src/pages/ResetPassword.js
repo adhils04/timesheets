@@ -15,10 +15,10 @@ export const ResetPassword = () => {
         e.preventDefault();
         setError('');
 
-        if (!email.endsWith('@easy-escape.com')) {
-            setError('Email using valid domain @easy-escape.com is required.');
-            return;
-        }
+        // if (!email.endsWith('@easy-escape.com')) {
+        //     setError('Email using valid domain @easy-escape.com is required.');
+        //     return;
+        // }
 
         setLoading(true);
         try {
