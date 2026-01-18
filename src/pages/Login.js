@@ -1,27 +1,40 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
 export const Login = ({ onLogin }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Initial check for messages passed via navigation
+    React.useEffect(() => {
+        if (location.state?.message) {
+            setSuccess(location.state.message);
+            // Clear state so it doesn't persist on refresh
+            window.history.replaceState({}, document.title);
+        }
+        if (location.state?.error) {
+            setError(location.state.error);
+            window.history.replaceState({}, document.title);
+        }
+    }, [location]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setSuccess('');
         try {
             await onLogin(email, password);
         } catch (err) {
             console.error(err);
-            // If the error message is our custom one about verification, use it.
-            // Firebase errors usually have prefixes like 'firebase: ...'. 
-            // We can just show err.message if it's user friendly, or map it.
             if (err.message.includes("Email verification pending")) {
-                setError(err.message);
+                setError(err.message + " Check your spam folder if you don't see the email.");
             } else {
                 setError('Invalid credentials');
             }
@@ -80,6 +93,12 @@ export const Login = ({ onLogin }) => {
                             Forgot password?
                         </Link>
                     </div>
+
+                    {success && (
+                        <div style={{ background: '#dcfce7', color: '#166534', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>✓</span> {success}
+                        </div>
+                    )}
 
                     {error && (
                         <div style={{ background: '#fee2e2', color: '#dc2626', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

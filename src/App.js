@@ -156,8 +156,12 @@ const AppContent = () => {
     setUser(null);
     setUserRole(null);
 
-    alert("Account created successfully! Please check your email and verify your account before logging in.");
-    navigate('/login');
+    // alert("Account created successfully! Please check your email and verify your account before logging in.");
+    navigate('/login', {
+      state: {
+        message: "Account created successfully! A verification email has been sent to your inbox. Please verify your account before logging in. (Check your spam folder too!)"
+      }
+    });
   };
 
   const handleLogout = async () => {
