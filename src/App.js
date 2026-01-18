@@ -24,6 +24,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ defau
 const Timesheets = lazy(() => import('./pages/Timesheets').then(module => ({ default: module.Timesheets })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then(module => ({ default: module.ResetPassword })));
+const ResetDataTool = lazy(() => import('./pages/ResetDataTool').then(module => ({ default: module.ResetDataTool })));
 
 // Loading Component
 const LoadingFallback = () => (
@@ -230,6 +231,8 @@ const AppContent = () => {
             </AppLayout>
           </ProtectedRoute>
         } />
+
+        <Route path="/reset-data-tool" element={<ResetDataTool />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
