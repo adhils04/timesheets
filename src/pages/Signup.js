@@ -85,7 +85,7 @@ export const Signup = ({ onSignup }) => {
                         <Lock size={32} />
                     </div>
                 </div>
-                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>Join EasyEscape</h2>
+                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>Join Elide Group</h2>
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
                     Create your account
                 </p>

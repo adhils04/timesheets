@@ -50,7 +50,7 @@ export const Login = ({ onLogin }) => {
                         <Lock size={32} />
                     </div>
                 </div>
-                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>EasyEscape Login</h2>
+                <h2 style={{ textAlign: 'center', margin: '0 0 0.5rem 0' }}>User Login</h2>
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '2rem' }}>
                     Access your dashboard
                 </p>

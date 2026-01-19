@@ -26,7 +26,7 @@ export const LandingPage = () => {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
             }}>
-                Welcome to EasyEscape
+                Welcome to Elide Group
             </h1>
 
             {/* <p style={{
