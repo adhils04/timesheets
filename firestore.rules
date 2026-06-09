@@ -6,7 +6,7 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-
+    
     // Helper to check if the user is modifying their own founder entry
     // (Assuming 'founder' field matches auth token name or email, depending on your logic.
     //  For now, we'll just strict it to signed-in users)
